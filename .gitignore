@@ -7,3 +7,4 @@ env/
 venv/
 workdir/
 makefile
+build/

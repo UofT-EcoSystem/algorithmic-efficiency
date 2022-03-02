@@ -1,0 +1,10 @@
+# Don't copying these files into the container to prevent unneccessary container rebuild when doing container development
+Dockerfile
+**/.git
+__pycache__/*
+__pycache__
+*egg-info
+*eggs
+.vscode/
+workdir/
+build/
