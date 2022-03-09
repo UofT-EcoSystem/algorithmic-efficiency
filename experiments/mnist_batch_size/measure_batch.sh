@@ -40,11 +40,11 @@ while IFS=, read -r architecture batch_size trial_id step_to_threshold learning_
        --extra_metadata="batch_science.train_classification_error=$train_classification_error" \
        --extra_metadata="batch_science.val_cross_entropy_error=$val_cross_entropy_error" \
        --extra_metadata="batch_science.val_classification_error=$val_classification_error" \
-       --extra_metadata="batch_science.best_config_path=$best_config_path"
-    #    --target_value=$TARGET_VALUE
-    #    --architecture=$architecture \
+       --extra_metadata="batch_science.best_config_path=$best_config_path" \
+       --target_value=$TARGET_VALUE \
+       --architecture=$architecture \
+       --learning_rate=$learning_rate
     #    --batch_size=$batch_size \
-    #    --learning_rate=$learning_rate \
     set +x
     break
 done < ./best_parameters.csv
@@ -55,11 +55,11 @@ done < ./best_parameters.csv
 echo "[INFO $(date +"%d-%I:%M%p")] Generated files:"
 find $LOG_DIR
 
-# Check status of each experiment
-for FILE in experiments/simple_example_mnist_loss/logs/*/*.json;
+# Check status of each experiment (requires zsh)
+for FILE in ./experiments/mnist_batch_size/logs/**/*.json
 do
-    STATUS=$(cat experiments/simple_example_mnist_loss/logs/mnist_jax/metadata.json | jq -r '.status')
+    STATUS=$(cat $FILE | jq -r '.status')
     echo "$STATUS $FILE"
-done;
+done
 
 echo "[INFO $(date +"%d-%I:%M%p")] Finished."

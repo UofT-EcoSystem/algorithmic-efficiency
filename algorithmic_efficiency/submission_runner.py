@@ -84,6 +84,10 @@ flags.DEFINE_string(
     'The path to the JSON file describing the external tuning search space.')
 flags.DEFINE_integer('num_tuning_trials', 20,
                      'The number of external hyperparameter trials to run.')
+flags.DEFINE_float('target_value', None, 'The target value to reach.')
+flags.DEFINE_string('architecture', None, '')
+flags.DEFINE_integer('batch_size', None, '')
+flags.DEFINE_float('learning_rate', None, '')
 flags.DEFINE_multi_string(
     'extra_metadata', None,
     'Record extra metadata in the log_dir along side the CSVs metrics and JSON '

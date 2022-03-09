@@ -6,6 +6,7 @@ from absl import flags
 
 FLAGS = flags.FLAGS
 
+
 class Mnist(spec.Workload):
 
   def has_reached_goal(self, eval_result: float) -> bool:
@@ -13,8 +14,8 @@ class Mnist(spec.Workload):
 
   @property
   def target_value(self):
-    from IPython import embed
-    embed() # drop into an IPython session
+    if 'target_value' in FLAGS and FLAGS.target_value:
+      return FLAGS.target_value
     return 0.9
 
   @property
@@ -55,6 +56,8 @@ class Mnist(spec.Workload):
     """Run a full evaluation of the model."""
     data_rng, model_rng = prng.split(rng, 2)
     eval_batch_size = 2000
+    if 'batch_size' in FLAGS and FLAGS.batch_size:
+      eval_batch_size = FLAGS.batch_size
     self._eval_ds = self.build_input_queue(
         data_rng, 'test', data_dir, batch_size=eval_batch_size)
 
