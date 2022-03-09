@@ -3,7 +3,7 @@
 # Author: Daniel Snider <danielsnider12@gmail.com>
 #
 # Usage:
-## bash ./experiments/mnist_batch_size/measure_batch.sh.sh 2>&1 | tee -a $LOG_DIR/console_output.log
+# mkdir -p ./experiments/mnist_batch_size/logs; bash ./experiments/mnist_batch_size/measure_batch.sh 2>&1 | tee -a ./experiments/mnist_batch_size/logs/console_output.log
 
 # set -e # exit on error
 
@@ -19,34 +19,35 @@ NUM_TRIALS='1'
 TARGET_VALUE='0.3'
 
 echo -e "\n[INFO $(date +"%d-%I:%M%p")] Starting."
-while IFS=, read -r architecture batch_size trial_id step_to_threshold learning_rate train.cross_entropy_error train.classification_error val.cross_entropy_error val.classification_error best_config_path; do
-    echo "arch $architecture, batch $batch_size, lr $learning_rate";
+while IFS=, read -r architecture batch_size trial_id step_to_threshold learning_rate train_cross_entropy_error train_classification_error val_cross_entropy_error val_classification_error best_config_path; do
+    echo "INPUT CONFIG: arch $architecture, batch $batch_size, lr $learning_rate";
     LOG_DIR_SUB_EXPERIMENT=$LOG_DIR/$architecture/$batch_size
     set -x
     mkdir -p $LOG_DIR_SUB_EXPERIMENT
-#    python3 algorithmic_efficiency/submission_runner.py \
-#        --framework=jax \
-#        --workload=mnist_jax \
-#        --submission_path=baselines/mnist/mnist_jax/submission.py \
-#        --tuning_search_space=baselines/mnist/tuning_search_space.json \
-#        --num_tuning_trials=$NUM_TRIALS \
-#        --log_dir=$LOG_DIR_SUB_EXPERIMENT
-#        --architecture=$architecture
-#        --batch_size=$batch_size
-#        --learning_rate=$learning_rate
-#        --extra_metadata="architecture=batch_science.$architecture"
-#        --extra_metadata="batch_size=batch_science.$batch_size"
-#        --extra_metadata="trial_id=batch_science.$trial_id"
-#        --extra_metadata="step_to_threshold=batch_science.$step_to_threshold"
-#        --extra_metadata="learning_rate=batch_science.$learning_rate"
-#        --extra_metadata="train.cross_entropy_error=batch_science.$train.cross_entropy_error"
-#        --extra_metadata="train.classification_error=batch_science.$train.classification_error"
-#        --extra_metadata="val.cross_entropy_error=batch_science.$val.cross_entropy_error"
-#        --extra_metadata="val.classification_error=batch_science.$val.classification_error"
-#        --extra_metadata="best_config_path=batch_science.$best_config_path"
-#        --target_value=$TARGET_VALUE
+   python3 algorithmic_efficiency/submission_runner.py \
+       --framework=jax \
+       --workload=mnist_jax \
+       --submission_path=baselines/mnist/mnist_jax/submission.py \
+       --tuning_search_space=baselines/mnist/tuning_search_space.json \
+       --num_tuning_trials=$NUM_TRIALS \
+       --log_dir=$LOG_DIR_SUB_EXPERIMENT \
+       --extra_metadata="batch_science.architecture=$architecture" \
+       --extra_metadata="batch_science.batch_size=$batch_size" \
+       --extra_metadata="batch_science.trial_id=$trial_id" \
+       --extra_metadata="batch_science.step_to_threshold=$step_to_threshold" \
+       --extra_metadata="batch_science.learning_rate=$learning_rate" \
+       --extra_metadata="batch_science.train_cross_entropy_error=$train_cross_entropy_error" \
+       --extra_metadata="batch_science.train_classification_error=$train_classification_error" \
+       --extra_metadata="batch_science.val_cross_entropy_error=$val_cross_entropy_error" \
+       --extra_metadata="batch_science.val_classification_error=$val_classification_error" \
+       --extra_metadata="batch_science.best_config_path=$best_config_path"
+    #    --target_value=$TARGET_VALUE
+    #    --architecture=$architecture \
+    #    --batch_size=$batch_size \
+    #    --learning_rate=$learning_rate \
     set +x
-done < /home/dans/csc2541_colab/best_parameters.csv
+    break
+done < ./best_parameters.csv
 
 # Combine all tuning trials into one CSV
 # python3 -c "from algorithmic_efficiency import logging_utils; logging_utils.concatenate_csvs('$LOG_DIR')"

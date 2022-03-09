@@ -2,6 +2,9 @@ import random_utils as prng
 
 from algorithmic_efficiency import spec
 
+from absl import flags
+
+FLAGS = flags.FLAGS
 
 class Mnist(spec.Workload):
 
@@ -10,6 +13,8 @@ class Mnist(spec.Workload):
 
   @property
   def target_value(self):
+    from IPython import embed
+    embed() # drop into an IPython session
     return 0.9
 
   @property
