@@ -2,6 +2,7 @@ import random_utils as prng
 
 from algorithmic_efficiency import spec
 
+import flax
 from absl import flags
 
 FLAGS = flags.FLAGS
@@ -40,11 +41,11 @@ class Mnist(spec.Workload):
 
   @property
   def max_allowed_runtime_sec(self):
-    return 60
+    return 900
 
   @property
   def eval_period_time_sec(self):
-    return 10
+    return 60
 
   def _eval_metric(self, logits, labels):
     """Return the mean accuracy and loss as a dict."""
@@ -66,6 +67,14 @@ class Mnist(spec.Workload):
         'loss': 0.,
     }
     n_data = 0
+    dropout_rate = 0.4
+    # from IPython import embed
+    # embed() # drop into an IPython session
+
+    params2 = params.unfreeze()
+    params2["Dense_0"]["kernel"] = params["Dense_0"]["kernel"] * (1.0 - dropout_rate)
+    params2["Dense_1"]["kernel"] = params["Dense_1"]["kernel"] * (1.0 - dropout_rate)
+    params = flax.core.frozen_dict.freeze(params2)
     for (images, labels) in self._eval_ds:
       images, labels = self.preprocess_for_eval(images, labels, None, None)
       logits, _ = self.model_fn(

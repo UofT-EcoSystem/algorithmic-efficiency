@@ -27,8 +27,7 @@ def optimizer(hyperparameters):
     learning_rate = FLAGS.learning_rate
   use_sgd = True
   if use_sgd:
-    opt_init_fn, opt_update_fn = optax.sgd(
-        learning_rate=learning_rate)
+    opt_init_fn, opt_update_fn = optax.sgd(learning_rate=learning_rate)
   else:
     opt_init_fn, opt_update_fn = optax.chain(
         optax.scale_by_adam(

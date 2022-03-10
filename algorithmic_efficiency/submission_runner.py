@@ -87,6 +87,7 @@ flags.DEFINE_integer('num_tuning_trials', 20,
 flags.DEFINE_float('target_value', None, 'The target value to reach.')
 flags.DEFINE_string('architecture', None, '')
 flags.DEFINE_integer('batch_size', None, '')
+flags.DEFINE_string('activation', None, '')
 flags.DEFINE_float('learning_rate', None, '')
 flags.DEFINE_multi_string(
     'extra_metadata', None,
