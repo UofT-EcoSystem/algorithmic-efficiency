@@ -1,4 +1,4 @@
-import random_utils as prng
+from algorithmic_efficiency import random_utils as prng
 
 from algorithmic_efficiency import spec
 
@@ -21,7 +21,11 @@ class Mnist(spec.Workload):
     return 60000
 
   @property
-  def num_eval_examples(self):
+  def num_eval_train_examples(self):
+    return 60000
+
+  @property
+  def num_validation_examples(self):
     return 10000
 
   @property
@@ -60,7 +64,7 @@ class Mnist(spec.Workload):
         'loss': 0.,
     }
     n_data = 0
-    for (images, labels) in self._eval_ds:
+    for (images, labels, _) in self._eval_ds:
       images, labels = self.preprocess_for_eval(images, labels, None, None)
       logits, _ = self.model_fn(
           params,

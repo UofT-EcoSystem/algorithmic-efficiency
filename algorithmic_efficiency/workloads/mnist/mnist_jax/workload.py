@@ -45,7 +45,7 @@ class MnistWorkload(Mnist):
                      batch_size):
     ds = tfds.load('mnist', split=split)
     ds = ds.cache()
-    ds = ds.map(lambda x: (self._normalize(x['image']), x['label']))
+    ds = ds.map(lambda x: (self._normalize(x['image']), x['label'], None))
     if split == 'train':
       ds = ds.shuffle(1024, seed=data_rng[0])
       ds = ds.repeat()
@@ -67,7 +67,6 @@ class MnistWorkload(Mnist):
           'before workload.param_shapes!')
     return self._param_shapes
 
-  @property
   def model_params_types(self):
     pass
 
