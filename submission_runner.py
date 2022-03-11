@@ -96,6 +96,11 @@ flags.DEFINE_enum(
     enum_values=['jax', 'pytorch'],
     help='Whether to use Jax or Pytorch for the submission. Controls among '
     'other things if the Jax or Numpy RNG library is used for RNG.')
+flags.DEFINE_string(
+  'logging_dir',
+  None,
+  help='Saves logs to the specified file path. By default logs are not saved'
+)
 
 FLAGS = flags.FLAGS
 
@@ -298,6 +303,12 @@ def score_submission_on_workload(workload: spec.Workload,
 
 
 def main(_):
+  if FLAGS.logging_dir is not None:
+    import logging as og_logging
+    console = og_logging.FileHandler(os.path.join(FLAGS.logging_dir, FLAGS.workload + '.log'))
+    console.setFormatter(logging.PythonFormatter())
+    logging.get_absl_logger().addHandler(console)
+
   workload_metadata = WORKLOADS[FLAGS.workload]
   workload = _import_workload(
       workload_path=workload_metadata['workload_path'],
