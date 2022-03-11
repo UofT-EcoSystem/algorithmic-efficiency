@@ -96,6 +96,15 @@ flags.DEFINE_enum(
     enum_values=['jax', 'pytorch'],
     help='Whether to use Jax or Pytorch for the submission. Controls among '
     'other things if the Jax or Numpy RNG library is used for RNG.')
+flags.DEFINE_integer(
+  'console_verbosity', 0,
+  help='Integer from 0 to 3.\
+  \n0 - Displays all logs with formatting (eg. timestamps, etc.).\
+  \n1 - Removes unneccesary information from training and results. \
+  \n2 - Displays only the final evaluations for each run and final workload score.\
+  \n3 - Displays only the final workload score, as well as WARNING, ERROR\
+  and FATAL level logs.'
+)
 
 FLAGS = flags.FLAGS
 
@@ -156,6 +165,9 @@ def train_once(workload: spec.Workload,
                hyperparameters: Optional[spec.Hyperparamters],
                rng: spec.RandomState) -> Tuple[spec.Timing, spec.Steps]:
   data_rng, opt_init_rng, model_init_rng, rng = prng.split(rng, 4)
+
+  if FLAGS.console_verbosity == 1:
+    logging.set_verbosity(logging.WARNING)
 
   # Workload setup.
   logging.info('Initializing dataset.')
@@ -223,8 +235,14 @@ def train_once(workload: spec.Workload,
                                                model_state,
                                                eval_rng,
                                                data_dir)
+      if FLAGS.console_verbosity == 1:
+        logging.set_verbosity(logging.INFO)
+
       logging.info(f'{current_time - global_start_time:.2f}s\t{global_step}'
                    f'\t{latest_eval_result}')
+      if FLAGS.console_verbosity == 1:
+        logging.set_verbosity(logging.WARNING)
+
       last_eval_time = current_time
       eval_results.append((global_step, latest_eval_result))
       goal_reached = workload.has_reached_goal(latest_eval_result)
@@ -273,6 +291,8 @@ def score_submission_on_workload(workload: spec.Workload,
       # bit ints, ensuring we can safely use either rng[0] or rng[1] as a random
       # number.
       rng, _ = prng.split(rng, 2)
+      if FLAGS.console_verbosity == 1:
+        logging.set_verbosity(logging.INFO)
       logging.info(f'--- Tuning run {hi + 1}/{num_tuning_trials} ---')
       timing, metrics = train_once(workload, batch_size, data_dir,
                                    init_optimizer_state, update_params,
@@ -280,10 +300,18 @@ def score_submission_on_workload(workload: spec.Workload,
       all_timings.append(timing)
       all_metrics.append(metrics)
     score = min(all_timings)
+    
+    if FLAGS.console_verbosity != 3:
+      logging.set_verbosity(logging.INFO)
+
+    logging.info('===== Results =====')
     for ti in range(num_tuning_trials):
       logging.info('Tuning trial %d/%d', ti + 1, num_tuning_trials)
-      logging.info('Hyperparameters: %s', tuning_search_space[ti])
-      logging.info('Metrics: %s', all_metrics[ti])
+      logging.info('Hyperparameters: %s', tuning_search_space[ti]._asdict())
+      if FLAGS.console_verbosity !=0:
+        logging.info('Metrics: %s', all_metrics[ti]['eval_results'][-1])
+      else:
+        logging.info('Metrics: %s', all_metrics[ti])
       logging.info('Timing: %s', all_timings[ti])
       logging.info('=' * 20)
   else:
@@ -298,6 +326,10 @@ def score_submission_on_workload(workload: spec.Workload,
 
 
 def main(_):
+  if FLAGS.console_verbosity != 0:
+    logging.set_verbosity(logging.WARNING)
+    logging.get_absl_handler().setFormatter(None)
+
   workload_metadata = WORKLOADS[FLAGS.workload]
   workload = _import_workload(
       workload_path=workload_metadata['workload_path'],
@@ -310,6 +342,8 @@ def main(_):
                                        FLAGS.tuning_ruleset,
                                        FLAGS.tuning_search_space,
                                        FLAGS.num_tuning_trials)
+                                       
+  logging.set_verbosity(logging.INFO)
   logging.info('Final %s score: %f', FLAGS.workload, score)
 
 
