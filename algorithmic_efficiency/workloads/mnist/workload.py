@@ -68,12 +68,9 @@ class Mnist(spec.Workload):
     }
     n_data = 0
     dropout_rate = 0.4
-    # from IPython import embed
-    # embed() # drop into an IPython session
-
     params2 = params.unfreeze()
-    params2["Dense_0"]["kernel"] = params["Dense_0"]["kernel"] * (1.0 - dropout_rate)
-    params2["Dense_1"]["kernel"] = params["Dense_1"]["kernel"] * (1.0 - dropout_rate)
+    for key in params.keys():
+      params2[key]["kernel"] = params[key]["kernel"] * (1.0 - dropout_rate)
     params = flax.core.frozen_dict.freeze(params2)
     for (images, labels) in self._eval_ds:
       images, labels = self.preprocess_for_eval(images, labels, None, None)
