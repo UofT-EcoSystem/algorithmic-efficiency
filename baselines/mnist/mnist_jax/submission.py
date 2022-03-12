@@ -68,15 +68,16 @@ def pmapped_update_params(workload: spec.Workload,
         rng,
         update_batch_norm=True)
     loss = workload.loss_fn(label_batch, logits_batch)
-    return jnp.mean(loss), new_model_state
+    train_metrics = workload._train_metric(loss, label_batch, logits_batch)
+    return train_metrics, new_model_state
 
   grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
-  (_, new_model_state), grad = grad_fn(current_param_container)
+  (train_metrics, new_model_state), grad = grad_fn(current_param_container)
   _, opt_update_fn = optimizer(hyperparameters)
   updates, new_optimizer_state = opt_update_fn(grad, optimizer_state,
                                                current_param_container)
   updated_params = optax.apply_updates(current_param_container, updates)
-  return new_optimizer_state, updated_params, new_model_state
+  return new_optimizer_state, updated_params, new_model_state, train_metrics
 
 
 def update_params(
@@ -109,13 +110,14 @@ def update_params(
                                       num_devices, *label_batch.shape[1:]))
 
   # TODO(znado) we should be more efficient than replicating state each step.
-  new_optimizer_state, updated_params, new_model_state = pmapped_update_params(
+  new_optimizer_state, updated_params, new_model_state, train_metrics = pmapped_update_params(
       workload, jax_utils.replicate(current_param_container),
       jax_utils.replicate(model_state), hyperparameters, reshaped_input_batch,
       reshaped_label_batch, jax_utils.replicate(optimizer_state), rng,
       jnp.arange(num_devices))
   return (jax_utils.unreplicate(new_optimizer_state),
           jax_utils.unreplicate(updated_params),
+          jax_utils.unreplicate(train_metrics),
           jax_utils.unreplicate(new_model_state))
 
 
