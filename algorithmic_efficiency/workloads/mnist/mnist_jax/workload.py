@@ -143,3 +143,12 @@ class MnistWorkload(Mnist):
     loss = jnp.sum(self.loss_fn(labels, logits))
     n_data = len(logits)
     return {'accuracy': accuracy, 'loss': loss, 'n_data': n_data}
+
+  def get_model_class(self):
+    '''Return a target class representing the workload model. The object
+    whose state is being updated during training.
+    '''
+    # Makes sense for this to be an abstract class in spec.py but I didn't 
+    # want to enforce this method on other workloads and break things.
+    # As an alternative, could enforce a self._model property to all workloads
+    return self._model
