@@ -11,59 +11,18 @@ from workloads.mnist.workload import Mnist
 
 from algorithmic_efficiency import spec
 
-from absl import flags
-
-FLAGS = flags.FLAGS
-
 
 class _Model(nn.Module):
 
   @nn.compact
   def __call__(self, x: spec.Tensor, train: bool):
+    del train
     input_size = 28 * 28
     num_hidden = 128
     num_classes = 10
     x = x.reshape((x.shape[0], input_size))  # Flatten.
-
-
-
-    if 'architecture' in FLAGS and FLAGS.architecture:
-      def dropout(x):
-        if train:
-          return nn.Dropout(rate=0.4)(x, deterministic=True)
-        else:
-          return x
-      if FLAGS.activation == 'relu':
-        activation = nn.relu
-      else:
-        activation = nn.sigmoid
-      if FLAGS.architecture == 'FC-1024':
-        x = nn.Dense(features=1024, use_bias=True)(x)
-        x = activation(x)
-        x = dropout(x)
-      if FLAGS.architecture == 'FC-128-128-128':
-        x = nn.Dense(features=128, use_bias=True)(x)
-        x = activation(x)
-        x = dropout(x)
-        x = nn.Dense(features=128, use_bias=True)(x)
-        x = activation(x)
-        x = dropout(x)
-        x = nn.Dense(features=128, use_bias=True)(x)
-        x = activation(x)
-        x = dropout(x)
-      if FLAGS.architecture == 'FC-2048-2048-2048':
-        x = nn.Dense(features=2048, use_bias=True)(x)
-        x = activation(x)
-        x = dropout(x)
-        x = nn.Dense(features=2048, use_bias=True)(x)
-        x = activation(x)
-        x = dropout(x)
-        x = nn.Dense(features=2048, use_bias=True)(x)
-        x = activation(x)
-        x = dropout(x)
-    else:
-      x = nn.Dense(features=num_hidden, use_bias=True)(x)
-      x = nn.sigmoid(x)
+    x = nn.Dense(features=num_hidden, use_bias=True)(x)
+    x = nn.sigmoid(x)
     x = nn.Dense(features=num_classes, use_bias=True)(x)
     x = nn.log_softmax(x)
     return x
