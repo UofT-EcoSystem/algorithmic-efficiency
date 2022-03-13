@@ -37,8 +37,10 @@ WORKLOADS = {
         'workload_class_name': 'MnistWorkload'
     },
     'configurable_mnist_jax': {
-        'workload_path': BASE_WORKLOADS_DIR + 'mnist/configurable_mnist_jax/workload.py',
-        'workload_class_name': 'MnistWorkload'
+        'workload_path':
+            BASE_WORKLOADS_DIR + 'mnist/configurable_mnist_jax/workload.py',
+        'workload_class_name':
+            'MnistWorkload'
     },
     'mnist_pytorch': {
         'workload_path': BASE_WORKLOADS_DIR + 'mnist/mnist_pytorch/workload.py',

@@ -8,13 +8,13 @@
 set -e # exit on error
 
 LOGGING_DIR='./experiments/model_arch_mnist/logs'
-# rm -rf $LOGGING_DIR
+rm -rf $LOGGING_DIR
 mkdir -p $LOGGING_DIR
 
 ACTIVATIONS='relu sigmoid hard_tahn gelu'
 MODEL_WIDTHS='16 32 128 256'
 MODEL_DEPTHS='1 2 4 8'
-DROPOUT_RATES='0 0.2 0.4 0.6'
+DROPOUT_RATES='0'
 BATCH_SIZES='1024'
 OPTIMIZER='adam'
 

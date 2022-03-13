@@ -14,10 +14,11 @@ from absl import flags
 
 FLAGS = flags.FLAGS
 
+
 def get_batch_size(workload_name):
   if 'batch_size' in FLAGS and FLAGS.batch_size:
     return FLAGS.batch_size
-  batch_sizes = {'mnist_jax': 1024}
+  batch_sizes = {'configurable_mnist_jax': 1024}
   return batch_sizes[workload_name]
 
 
