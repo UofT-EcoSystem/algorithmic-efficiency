@@ -26,6 +26,7 @@ python3 algorithmic_efficiency/submission_runner.py \
     --tuning_search_space=baselines/mnist/tuning_search_space.json \
     --num_tuning_trials=$NUM_TRIALS \
     --eval_frequency_override='1 step' \
+    --early_stopping_config='early_stopping_config.json' \
     --logging_dir=$LOGGING_DIR
 set +x
 
