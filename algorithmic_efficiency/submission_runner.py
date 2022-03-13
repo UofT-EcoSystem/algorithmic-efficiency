@@ -112,6 +112,19 @@ flags.DEFINE_string(
 flags.DEFINE_string(
     'early_stopping_config', None,
     'Stop training when a monitored metric has stopped improving.')
+flags.DEFINE_float('target_value', None, 'The target value to reach.')
+flags.DEFINE_string('architecture', None, '')
+flags.DEFINE_integer('batch_size', None, '')
+flags.DEFINE_string('activation', None, '')
+flags.DEFINE_float('learning_rate', None, '')
+flags.DEFINE_multi_string(
+    'extra_metadata', None,
+    'Record extra metadata in the log_dir along side the CSVs metrics and JSON '
+    'metadata. This is useful when doing multiple experiments and needing a '
+    'way to tell them apart. You can specify this option multiple times. '
+    'Example usage: --record_extra_metadata="key=value". When keys are being '
+    'recorded they will be prefixed with "extra." so to not overlap with other '
+    'CSV/JSON data attributes.')
 flags.DEFINE_string('data_dir', '~/', 'Dataset location')
 flags.DEFINE_enum(
     'framework',

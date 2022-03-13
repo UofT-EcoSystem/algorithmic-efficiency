@@ -10,19 +10,31 @@ import optax
 
 from algorithmic_efficiency import spec
 
+from absl import flags
+
+FLAGS = flags.FLAGS
 
 def get_batch_size(workload_name):
+  if 'batch_size' in FLAGS and FLAGS.batch_size:
+    return FLAGS.batch_size
   batch_sizes = {'mnist_jax': 1024}
   return batch_sizes[workload_name]
 
 
 def optimizer(hyperparameters):
-  opt_init_fn, opt_update_fn = optax.chain(
-      optax.scale_by_adam(
-          b1=1.0 - hyperparameters.one_minus_beta_1,
-          b2=0.999,
-          eps=hyperparameters.epsilon),
-      optax.scale(-hyperparameters.learning_rate))
+  learning_rate = hyperparameters.learning_rate
+  if 'learning_rate' in FLAGS and FLAGS.learning_rate:
+    learning_rate = FLAGS.learning_rate
+  use_sgd = True
+  if use_sgd:
+    opt_init_fn, opt_update_fn = optax.sgd(learning_rate=learning_rate)
+  else:
+    opt_init_fn, opt_update_fn = optax.chain(
+        optax.scale_by_adam(
+            b1=1.0 - hyperparameters.one_minus_beta_1,
+            b2=0.999,
+            eps=hyperparameters.epsilon),
+        optax.scale(-hyperparameters.learning_rate))
   return opt_init_fn, opt_update_fn
 
 
