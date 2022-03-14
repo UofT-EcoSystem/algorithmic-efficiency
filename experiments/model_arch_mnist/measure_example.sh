@@ -38,16 +38,29 @@ cat <<EOF > mnist_early_stopping_config.json
   "metric_name": "loss",
   "min_delta": 0,
   "patience": 5,
-  "min_steps": 58,
+  "min_steps": 0,
   "max_steps": 290,
   "mode": "min",
-  "baseline": 3.0
+  "baseline": null
 }
 EOF
 
+
+# Count number of experiments so that we can track progress
+activation_count=$( awk -F" " '{print NF-1}' <<<"${ACTIVATIONS}" )
+activation_count=$(echo $(( activation_count + 1 )))
+width_count=$( awk -F" " '{print NF-1}' <<<"${ACTIVATIONS}" )
+width_count=$(echo $(( width_count + 1 )))
+depth_count=$( awk -F" " '{print NF-1}' <<<"${ACTIVATIONS}" )
+depth_count=$(echo $(( depth_count + 1 )))
+total=$(echo $((activation_count * width_count * depth_count)))
+iteration=1
+
+
 run_cmd () {
-  echo -e "\n[INFO $(date +"%d-%I:%M%p")] Starting."
-  EXPERIMENT_DIR='$LOGGING_DIR/activation_$ACTIVATION__width_$MODEL_WIDTH__depth_$MODEL_DEPTH__dropout_$DROPOUT_RATE__batch_$BATCH_SIZE/'
+  echo -e "\n[INFO $(date +"%d-%I:%M%p")] Starting iteration $iteration of $total."
+  iteration=$(echo $(( iteration + 1 )))
+  EXPERIMENT_DIR="$LOGGING_DIR/activation_$ACTIVATION-width_$MODEL_WIDTH-depth_$MODEL_DEPTH-dropout_$DROPOUT_RATE-batch_$BATCH_SIZE/"
   mkdir -p $EXPERIMENT_DIR
   set -x
   python3 algorithmic_efficiency/submission_runner.py \
@@ -56,7 +69,7 @@ run_cmd () {
     --submission_path=baselines/mnist/configurable_mnist_jax/submission.py \
     --tuning_search_space="$HYPERPARAM_CONFIG" \
     --num_tuning_trials="$NUM_TRIALS" \
-    --log_dir="$EXPERIMENT_DIR" \
+    --logging_dir="$EXPERIMENT_DIR" \
     --eval_frequency_override="$EVAL_FREQUENCY_OVERRIDE" \
     --early_stopping_config="$EARLY_STOPPING_CONFIG" \
     --extra_metadata="mnist_config.target_value=$TARGET_VALUE" \
@@ -86,7 +99,6 @@ do
     done
   done
 done
-
 
 
 # Combine all tuning trials into one CSV
