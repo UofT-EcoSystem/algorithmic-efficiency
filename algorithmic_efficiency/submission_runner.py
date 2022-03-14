@@ -34,6 +34,10 @@ WORKLOADS = {
         'workload_path': BASE_WORKLOADS_DIR + 'mnist/mnist_jax/workload.py',
         'workload_class_name': 'MnistWorkload'
     },
+    'mnist_jax_augmentation': {
+        'workload_path': BASE_WORKLOADS_DIR + 'mnist/mnist_jax/augmentation/workload.py',
+        'workload_class_name': 'MnistAugmentation'
+    },
     'mnist_pytorch': {
         'workload_path': BASE_WORKLOADS_DIR + 'mnist/mnist_pytorch/workload.py',
         'workload_class_name': 'MnistWorkload'
@@ -147,7 +151,8 @@ def train_once(workload: spec.Workload, batch_size: int, data_dir: str,
                update_params: spec.UpdateParamsFn,
                data_selection: spec.DataSelectionFn,
                hyperparameters: Optional[spec.Hyperparamters],
-               rng: spec.RandomState) -> Tuple[spec.Timing, spec.Steps]:
+               rng: spec.RandomState
+               ) -> Tuple[spec.Timing, spec.Steps]:
   data_rng, opt_init_rng, model_init_rng, rng = prng.split(rng, 4)
 
   # Workload setup.
@@ -178,6 +183,7 @@ def train_once(workload: spec.Workload, batch_size: int, data_dir: str,
     selected_train_input_batch, selected_train_label_batch = data_selection(
         workload, input_queue, optimizer_state, model_params, hyperparameters,
         global_step, data_select_rng)
+
     try:
       optimizer_state, model_params, model_state = update_params(
           workload=workload,
@@ -219,7 +225,8 @@ def score_submission_on_workload(workload: spec.Workload,
                                  data_dir: str,
                                  tuning_ruleset: str,
                                  tuning_search_space: Optional[str] = None,
-                                 num_tuning_trials: Optional[int] = None):
+                                 num_tuning_trials: Optional[int] = None,
+                                 ):
   # Remove the trailing '.py' and convert the filepath to a Python module.
   submission_module_path = _convert_filepath_to_module(FLAGS.submission_path)
   submission_module = importlib.import_module(submission_module_path)
@@ -229,7 +236,7 @@ def score_submission_on_workload(workload: spec.Workload,
   data_selection = submission_module.data_selection
   get_batch_size = submission_module.get_batch_size
   batch_size = get_batch_size(workload_name)
-
+  
   if tuning_ruleset == 'external':
     # If the submission runner is responsible for hyperparameter tuning, load in
     # the search space and generate a list of randomly selected hyperparameter
@@ -296,7 +303,8 @@ def main(_):
                                        FLAGS.submission_path, FLAGS.data_dir,
                                        FLAGS.tuning_ruleset,
                                        FLAGS.tuning_search_space,
-                                       FLAGS.num_tuning_trials)
+                                       FLAGS.num_tuning_trials
+                                      )
   logging.info('Final %s score: %f', FLAGS.workload, score)
 
 
