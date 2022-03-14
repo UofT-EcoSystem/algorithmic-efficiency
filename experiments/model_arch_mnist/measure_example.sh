@@ -104,8 +104,8 @@ done
 # Combine all tuning trials into one CSV
 # python3 -c "from algorithmic_efficiency import logging_utils; logging_utils.concatenate_csvs('$LOG_DIR')"
 
-echo "[INFO $(date +"%d-%I:%M%p")] Generated files:"
-find $LOG_DIR
+# echo "[INFO $(date +"%d-%I:%M%p")] Generated files:"
+# find $LOG_DIR
 
 # # Check status of each experiment (requires zsh)
 # for FILE in ./experiments/model_arch_mnist/logs/**/*.json

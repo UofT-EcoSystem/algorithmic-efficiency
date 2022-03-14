@@ -3,33 +3,33 @@
 import functools
 from typing import Iterator, List, Tuple
 
+from absl import flags
 from flax import jax_utils
 import jax
 import jax.numpy as jnp
 import optax
 
 from algorithmic_efficiency import spec
-
-from absl import flags
+from algorithmic_efficiency.logging_utils import _get_extra_metadata_as_dict
 
 FLAGS = flags.FLAGS
 
 
 def get_batch_size(workload_name):
-  if 'batch_size' in FLAGS and FLAGS.batch_size:
-    return FLAGS.batch_size
+  extra_metadata = _get_extra_metadata_as_dict(FLAGS.extra_metadata)
+  batch_size = int(extra_metadata.get('extra.mnist_config.batch_size', None))
+  if batch_size:
+    return batch_size
   batch_sizes = {'configurable_mnist_jax': 1024}
   return batch_sizes[workload_name]
 
 
 def optimizer(hyperparameters):
-  learning_rate = hyperparameters.learning_rate
-  if 'learning_rate' in FLAGS and FLAGS.learning_rate:
-    learning_rate = FLAGS.learning_rate
-  use_sgd = True
-  if use_sgd:
+  extra_metadata = _get_extra_metadata_as_dict(FLAGS.extra_metadata)
+  optimizer = extra_metadata.get('extra.mnist_config.optimizer', None)
+  if optimizer == 'sgd':
     opt_init_fn, opt_update_fn = optax.sgd(learning_rate=learning_rate)
-  else:
+  elif optimizer == 'adam':
     opt_init_fn, opt_update_fn = optax.chain(
         optax.scale_by_adam(
             b1=1.0 - hyperparameters.one_minus_beta_1,

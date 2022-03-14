@@ -1,22 +1,19 @@
 """MNIST workload implemented in Jax."""
 
-import random_utils as prng
 from typing import Tuple
 
+from absl import flags
 from flax import linen as nn
 import jax
 import jax.numpy as jnp
+import random_utils as prng
 import tensorflow as tf
 import tensorflow_datasets as tfds
 
 from algorithmic_efficiency import spec
-
-from absl import flags
-
-FLAGS = flags.FLAGS
-
 from algorithmic_efficiency.logging_utils import _get_extra_metadata_as_dict
 
+FLAGS = flags.FLAGS
 
 
 class MnistWorkload(spec.Workload):
@@ -25,22 +22,24 @@ class MnistWorkload(spec.Workload):
     self._eval_ds = None
     self._param_shapes = None
     extra_metadata = _get_extra_metadata_as_dict(FLAGS.extra_metadata)
-    # from IPython import embed
-    # embed() # drop into an IPython session
-
-    self._target_value = float(extra_metadata.get('extra.mnist_config.target_value', None))
-    self._max_allowed_runtime_sec = int(extra_metadata.get('extra.mnist_config.max_allowed_runtime_sec', None))
+    self._target_value = float(
+        extra_metadata.get('extra.mnist_config.target_value', None))
+    self._max_allowed_runtime_sec = int(
+        extra_metadata.get('extra.mnist_config.max_allowed_runtime_sec', None))
     activitation_fn_map = {
-      'relu': jax.nn.relu,
-      'sigmoid': jax.nn.sigmoid,
-      'hard_tanh': jax.nn.hard_tanh,
-      'gelu': jax.nn.gelu
+        'relu': jax.nn.relu,
+        'sigmoid': jax.nn.sigmoid,
+        'hard_tanh': jax.nn.hard_tanh,
+        'gelu': jax.nn.gelu
     }
-    activation_fn = activitation_fn_map[extra_metadata.get('extra.mnist_config.activation_fn', 'relu')]
+    activation_fn = activitation_fn_map[extra_metadata.get(
+        'extra.mnist_config.activation_fn', 'relu')]
     model_width = int(extra_metadata.get('extra.mnist_config.model_width', 128))
     model_depth = int(extra_metadata.get('extra.mnist_config.model_depth', 1))
-    self.dropout_rate = float(extra_metadata.get('extra.mnist_config.dropout_rate', 0))
-    self.batch_size = int(extra_metadata.get('extra.mnist_config.batch_size', None))
+    self.dropout_rate = float(
+        extra_metadata.get('extra.mnist_config.dropout_rate', 0))
+    self.batch_size = int(
+        extra_metadata.get('extra.mnist_config.batch_size', None))
     self.optimizer = extra_metadata.get('extra.mnist_config.optimizer', None)
 
     class _Model(nn.Module):
