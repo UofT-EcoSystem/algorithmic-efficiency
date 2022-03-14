@@ -3,14 +3,14 @@ This script will plot training loss vs training step using for a recorded CSV.
 
 Author: Daniel Snider <danielsnider12@gmail.com>
 
-Usage: python3 experiments/simple_example_mnist_loss/plot_loss.py
+Usage: python3 experiments/model_arch_mnist/plot_example.py
 """
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
 # Read Data
-input_file = './experiments/simple_example_mnist_loss/logs/all_measurements.csv'
+input_file = './experiments/model_arch_mnist/logs/activation_relu-width_16-depth_1-dropout_0-batch_1024/configurable_mnist_jax/trial_1/measurements.csv'
 df = pd.read_csv(input_file)
 
 # Plot

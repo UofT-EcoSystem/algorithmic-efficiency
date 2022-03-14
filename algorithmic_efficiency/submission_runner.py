@@ -118,11 +118,6 @@ flags.DEFINE_string(
 flags.DEFINE_string(
     'early_stopping_config', None,
     'Stop training when a monitored metric has stopped improving.')
-flags.DEFINE_float('target_value', None, 'The target value to reach.')
-flags.DEFINE_string('architecture', None, '')
-flags.DEFINE_integer('batch_size', None, '')
-flags.DEFINE_string('activation', None, '')
-flags.DEFINE_float('learning_rate', None, '')
 flags.DEFINE_string('data_dir', '~/', 'Dataset location')
 flags.DEFINE_enum(
     'framework',
