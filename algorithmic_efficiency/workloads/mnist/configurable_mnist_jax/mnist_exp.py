@@ -27,7 +27,7 @@ class ExpModel(nn.Module):
         self._dropout = dropout # dropout rate
         self._input_size = input_size # for reshaping
         self._num_classes = num_classes
-
+    
     @nn.compact
     def __call__(self, x: spec.Tensor, train: bool):
         dropout_rate = self._dropout if train else 0.
@@ -144,4 +144,4 @@ class MnistWorkload(Mnist):
     accuracy = jnp.sum(jnp.argmax(logits, axis=-1) == labels)
     loss = jnp.sum(self.loss_fn(labels, logits))
     n_data = len(logits)
-    return {'accuracy': accuracy, 'loss': 0.0, 'n_data': n_data}
+    return {'accuracy': accuracy, 'loss': loss, 'n_data': n_data}

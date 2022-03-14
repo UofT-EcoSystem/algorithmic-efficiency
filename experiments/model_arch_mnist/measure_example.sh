@@ -74,7 +74,7 @@ run_cmd () {
     --early_stopping_config="$EARLY_STOPPING_CONFIG" \
     --extra_metadata="mnist_config.target_value=$TARGET_VALUE" \
     --extra_metadata="mnist_config.max_allowed_runtime_sec=$MAX_ALLOWED_RUNTIME_SEC" \
-    --extra_metadata="mnist_config.activation=$ACTIVATION" \
+    --extra_metadata="mnist_config.activation_fn=$ACTIVATION" \
     --extra_metadata="mnist_config.model_width=$MODEL_WIDTH" \
     --extra_metadata="mnist_config.model_depth=$MODEL_DEPTH" \
     --extra_metadata="mnist_config.dropout_rate=$DROPOUT_RATE" \
