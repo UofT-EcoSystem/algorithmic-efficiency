@@ -17,38 +17,27 @@ FLAGS = flags.FLAGS
 
 class _Model(nn.Module):
 
-  def __init__(self,
-               num_hidden: int,
-               num_layer: int,
-               activation_fn: str,
-               input_size: int = 28,
-               num_classes: int = 10,
-               dropout: int = 0):
-    super().__init__()
-    function_dict = {
-        'relu': jax.nn.relu,
-        'sigmoid': jax.nn.sigmoid,
-        'hard_tanh': jax.nn.hard_tanh,
-        'gelu': jax.nn.gelu
-    }
-    self._act_func = function_dict[activation_fn]
-    self._num_hidden = num_hidden  # model width
-    self._num_layer = num_layer  # model depth, number of dense layers
-    self._dropout = dropout  # dropout rate
-    self._input_size = input_size  # for reshaping
-    self._num_classes = num_classes
-
   @nn.compact
   def __call__(self, x: spec.Tensor, train: bool):
-    dropout_rate = self._dropout if train else 0.
     del train
-    input_size = self._input_size * self._input_size
-    num_hidden = self._num_hidden
-    num_classes = self._num_classes
+    num_hidden = 128
+    num_layer = 1
+    activation_fn = 'relu'
+    input_size = 28 * 28
+    num_classes = 10
+    dropout = 0
+    activitation_fn_map = {
+      'relu': jax.nn.relu,
+      'sigmoid': jax.nn.sigmoid,
+      'hard_tanh': jax.nn.hard_tanh,
+      'gelu': jax.nn.gelu
+    }
+    activation_fn = activitation_fn_map[activation_fn]
+
     x = x.reshape((x.shape[0], input_size))  # Flatten.
-    for _ in range(self._num_layer - 1):
+    for _ in range(num_layer - 1):
       x = nn.Dense(features=num_hidden, use_bias=True)(x)
-      x = self._act_func(x)
+      x = activation_fn(x)
     x = nn.Dense(features=num_classes, use_bias=True)(x)
     x = nn.log_softmax(x)
     return x
@@ -59,10 +48,13 @@ class MnistWorkload(spec.Workload):
   def __init__(self):
     self._eval_ds = None
     self._param_shapes = None
-    from IPython import embed
-    embed() # drop into an IPython session
-    num_hidden, num_layer, activation_fn, input_size, num_classes, dropout = 0
-    self._model = _Model(num_hidden, num_layer, activation_fn, input_size, num_classes, dropout)
+    num_hidden = 128
+    num_layer = 1
+    activation_fn = 'relu'
+    input_size = 28 * 28
+    num_classes = 10
+    dropout = 0
+    self._model = _Model()
 
   def has_reached_goal(self, eval_result: float) -> bool:
     return eval_result['accuracy'] > self.target_value
