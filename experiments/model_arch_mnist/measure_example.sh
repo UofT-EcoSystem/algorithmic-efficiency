@@ -20,7 +20,6 @@ OPTIMIZER='adam'
 
 EVAL_FREQUENCY_OVERRIDE='10 step'
 TARGET_VALUE='0.6'
-MAX_ALLOWED_RUNTIME_SEC='300'
 NUM_TRIALS='1'
 
 HYPERPARAM_CONFIG='adam_mnist_tuning_search_space.json'
@@ -32,13 +31,14 @@ cat <<EOF > adam_mnist_tuning_search_space.json
 }
 EOF
 
+MAX_ALLOWED_RUNTIME_SEC='300'
 EARLY_STOPPING_CONFIG='mnist_early_stopping_config.json'
 cat <<EOF > mnist_early_stopping_config.json
 {
   "metric_name": "loss",
   "min_delta": 0,
   "patience": 5,
-  "min_steps": 0,
+  "min_steps": 58,
   "max_steps": 290,
   "mode": "min",
   "baseline": null
