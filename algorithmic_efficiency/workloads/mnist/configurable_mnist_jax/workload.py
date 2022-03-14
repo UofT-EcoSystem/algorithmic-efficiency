@@ -17,32 +17,6 @@ FLAGS = flags.FLAGS
 
 from algorithmic_efficiency.logging_utils import _get_extra_metadata_as_dict
 
-class _Model(nn.Module):
-
-  def __init__(self, model_width: int = 128, model_depth: int = 1, activation_fn: str = 'relu', input_size: int = 28 * 28, num_classes: int = 10, dropout_rate: int = 0):
-    activitation_fn_map = {
-      'relu': jax.nn.relu,
-      'sigmoid': jax.nn.sigmoid,
-      'hard_tanh': jax.nn.hard_tanh,
-      'gelu': jax.nn.gelu
-    }
-    self.model_width = model_width
-    self.model_depth = model_depth
-    self.activation_fn = activitation_fn_map[activation_fn]
-    self.input_size = input_size
-    self.num_classes = num_classes
-    self.dropout_rate = dropout_rate
-
-  @nn.compact
-  def __call__(self, x: spec.Tensor, train: bool):
-
-    x = x.reshape((x.shape[0], self.input_size))  # Flatten.
-    for _ in range(self.model_depth - 1):
-      x = nn.Dense(features=self.model_width, use_bias=True)(x)
-      x = self.activation_fn(x)
-    x = nn.Dense(features=self.num_classes, use_bias=True)(x)
-    x = nn.log_softmax(x)
-    return x
 
 
 class MnistWorkload(spec.Workload):
@@ -54,15 +28,36 @@ class MnistWorkload(spec.Workload):
     # from IPython import embed
     # embed() # drop into an IPython session
 
-    self._target_value = extra_metadata.get('extra.mnist_config.target_value', None)
-    self._max_allowed_runtime_sec = extra_metadata.get('extra.mnist_config.max_allowed_runtime_sec', None)
-    self.activation_fn = extra_metadata.get('extra.mnist_config.activation_fn', 'relu')
-    self.model_width = extra_metadata.get('extra.mnist_config.model_width', 128)
-    self.model_depth = extra_metadata.get('extra.mnist_config.model_depth', 1)
-    self.dropout_rate = extra_metadata.get('extra.mnist_config.dropout_rate', 0)
-    self.batch_size = extra_metadata.get('extra.mnist_config.batch_size', None)
+    self._target_value = float(extra_metadata.get('extra.mnist_config.target_value', None))
+    self._max_allowed_runtime_sec = int(extra_metadata.get('extra.mnist_config.max_allowed_runtime_sec', None))
+    activitation_fn_map = {
+      'relu': jax.nn.relu,
+      'sigmoid': jax.nn.sigmoid,
+      'hard_tanh': jax.nn.hard_tanh,
+      'gelu': jax.nn.gelu
+    }
+    activation_fn = activitation_fn_map[extra_metadata.get('extra.mnist_config.activation_fn', 'relu')]
+    model_width = int(extra_metadata.get('extra.mnist_config.model_width', 128))
+    model_depth = int(extra_metadata.get('extra.mnist_config.model_depth', 1))
+    self.dropout_rate = float(extra_metadata.get('extra.mnist_config.dropout_rate', 0))
+    self.batch_size = int(extra_metadata.get('extra.mnist_config.batch_size', None))
     self.optimizer = extra_metadata.get('extra.mnist_config.optimizer', None)
-    self._model = _Model(model_width=self.model_width, model_depth=self.model_depth, activation_fn=self.activation_fn, dropout_rate=self.dropout_rate)
+
+    class _Model(nn.Module):
+
+      @nn.compact
+      def __call__(self, x: spec.Tensor, train: bool):
+        input_size = 28 * 28
+        num_classes = 10
+        x = x.reshape((x.shape[0], input_size))  # Flatten.
+        for _ in range(model_depth - 1):
+          x = nn.Dense(features=model_width, use_bias=True)(x)
+          x = activation_fn(x)
+        x = nn.Dense(features=num_classes, use_bias=True)(x)
+        x = nn.log_softmax(x)
+        return x
+
+    self._model = _Model()
 
   def has_reached_goal(self, eval_result: float) -> bool:
     return eval_result['accuracy'] > self.target_value
