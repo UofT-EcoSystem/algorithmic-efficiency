@@ -87,6 +87,7 @@ class EarlyStopping:
     if not self.enabled:
       return False
     if self.max_steps and step_count > self.max_steps:
+      logging.warning('Early stop due to exceeding max steps.')
       return True
 
     current_score = metrics[self.metric_name]
@@ -98,6 +99,7 @@ class EarlyStopping:
     else:
       if (self.no_change_count >= self.patience and
           step_count >= self.min_steps):
+        logging.warning('Early stop due to no improvement.')
         return True
       else:
         self.no_change_count += 1
