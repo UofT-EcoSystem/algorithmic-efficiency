@@ -101,26 +101,26 @@ flags.DEFINE_enum(
 flags.DEFINE_string(
   'cp_dir',
   None,
-  help='The checkpoint directory. Path to directory in which model \
-      checkpoints should be saved. By default only saves a checkpoint at \
-      the end of each eval period.'
+  help='The checkpoint directory. Path to directory in which model '
+  'checkpoints should be saved. By default only saves a checkpoint at'
+  'he end of each eval period.'
 )
 
 flags.DEFINE_enum(
   'cp_step',
   'eval',
   enum_values=['eval', 'epoch', 'step'],
-  help='The checkpoint step type. The unit used by cp_freq to \
-      count how often to save a checkpoint'
+  help='The checkpoint step type. The unit used by cp_freq to '
+  'count how often to save a checkpoint'
 )
 
 flags.DEFINE_integer(
   'cp_freq',
   1,
   lower_bound=1,
-  help='An integer N indicating how frequently to save a checkpoint, \
-      where N is the number of evals, epochs or steps (see checkpoint_step flag) \
-      to wait before saving another checkpoint. The final model is also saved'
+  help='An integer N indicating how frequently to save a checkpoint, '
+  'where N is the number of evals, epochs or steps (see checkpoint_step flag) '
+  'to wait before saving another checkpoint. The final model is also saved'
 )
 
 FLAGS = flags.FLAGS

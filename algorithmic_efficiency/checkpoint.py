@@ -4,6 +4,7 @@ import os
 from absl import logging
 from absl import flags
 from algorithmic_efficiency import spec
+from typing import Optional
 
 # Note, although this should work for either pytorch or jax. It uses the flax 
 # checkpointing module, and therefore that would need to be added to the setup.cfg
@@ -12,22 +13,29 @@ from algorithmic_efficiency import spec
 FLAGS = flags.FLAGS
 
 class Checkpointer:
-    def __init__(self, ckpt_dir: str, workload: spec.Workload,
-        ckpt_step: str = 'eval', ckpt_freq: int=1, 
-        max_per_run: int=20, save_base_model=True) -> None:
+    def __init__(self, ckpt_dir: str, workload: Optional[spec.Workload] = None, 
+        num_train_samples: Optional[int] = None, ckpt_step: str = 'eval', 
+        ckpt_freq: int=1, max_per_run: int=20, save_base_model=True, ) -> None:
 
         self.ckpt_dir = ckpt_dir
         self.ckpt_step = ckpt_step
         self.ckpt_freq = ckpt_freq
-        self.num_train_samples = workload.num_train_examples
+        
         self.max_per_run = max_per_run
         self.num_run_checkpoints = 0
         self.samples_sum = 0
         self.current_run = 0
         self.step = 0 # Keeps track of the current eval, epoch or step
 
-        if save_base_model:
-            self.save_base_model(workload)
+        if workload is not None:
+            self.num_train_samples = workload.num_train_examples
+            if save_base_model:
+                self.save_base_model(workload)
+        elif num_train_samples is not None:
+            self.num_train_samples = num_train_samples
+        elif self.ckpt_step == 'epoch':
+            logging.warn('Checkpoint epoch step can not be used unless workload \
+                or num_train_samples is provided when instantiating Checkpointer')
 
         return
 
@@ -44,14 +52,14 @@ class Checkpointer:
         if callable(get_model):
             if not os.path.isdir(self.ckpt_dir):
                 os.makedirs(self.ckpt_dir)
-            with open(os.path.join(self.ckpt_dir, 'Model.pkl'), 'wb') as f:
+            with open(os.path.join(self.ckpt_dir, 'model.pkl'), 'wb') as f:
                 dill.dump(get_model(), f)
         else:
             logging.warn('Cannot save model instance. Workload does not have a get_model_class function.')
 
         return
 
-    def save_checkpoint(self, params, model_state, step, sub_folder='checkpoint',
+    def save_checkpoint(self, params, model_state, step, sub_folder='checkpoints',
         prefix='checkpoint', keep=1, overwrite=False, keep_every_n_steps=1):
         '''Save a checkpoint of the model.
 
@@ -125,17 +133,17 @@ class Checkpointer:
         
         if self.ckpt_step == 'eval': 
             self.step = current_eval
+        elif self.ckpt_step == 'step': 
+            self.step = current_step
         elif self.ckpt_step == 'epoch':
             # In case in the future batch size is allowed to vary during training
             self.samples_sum += current_batch_size
             if self.num_train_samples < self.samples_sum:
                 self.step += 1
                 self.samples_sum = 0
-        elif self.ckpt_step == 'step': 
-            self.step = current_step
         else:
             logging.warn('Do not recognize checkpoint step type.\
-                Checkpoints will not be saved')
+                Should be eval, epoch or step. Checkpoints will not be saved')
             return
 
         if ((self.step % self.ckpt_freq == 0 and 
@@ -155,8 +163,9 @@ class Checkpointer:
             self.num_run_checkpoints += 1
 
 
-    def restore_checkpoint(self, load_path, prefix, step=None):
-        '''Restore a checkpoint from a checkpoint file
+    def get_checkpoint(self, load_path, prefix, step=None):
+        '''Load a checkpoint from a checkpoint file. The checkpoints are
+        dictionaries with the model parameters and model state.
 
         Args:
             load_path: The path to the directory containing the checkpoints
@@ -176,5 +185,8 @@ class Checkpointer:
             step=step,
             prefix=prefix,
         )
+        if ckpt is None:
+            logging.warn('Could not find file containing prefix %s, \
+                in directory %s' % (prefix, load_path))
 
         return ckpt
