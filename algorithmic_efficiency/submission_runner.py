@@ -22,6 +22,7 @@ from absl import app
 from absl import flags
 from absl import logging
 
+from algorithmic_efficiency import early_stopping
 from algorithmic_efficiency import halton
 from algorithmic_efficiency import logging_utils
 from algorithmic_efficiency import spec
@@ -113,6 +114,9 @@ flags.DEFINE_string(
     'Evaluate after every epoch: --eval_frequency_override="1 epoch"'
     'Evaluate after 100 mini-batches: --eval_frequency_override="100 step"'
     'Note: Requires --logging_dir set to take effect.')
+flags.DEFINE_string(
+    'early_stopping_config', None,
+    'Stop training when a monitored metric has stopped improving.')
 flags.DEFINE_string('data_dir', '~/', 'Dataset location')
 flags.DEFINE_enum(
     'framework',
@@ -200,10 +204,15 @@ def train_once(workload: spec.Workload, batch_size: int, data_dir: str,
   global_step = 0
   training_complete = False
   latest_eval_result = None
+  early_stop = False
+  early_stop_check = early_stopping.EarlyStopping(
+      FLAGS.early_stopping_config).early_stop_check
+
   global_start_time = time.time()
 
   logging.info('Starting training loop.')
-  while (is_time_remaining and not goal_reached and not training_complete):
+  while (is_time_remaining and not goal_reached and not training_complete and
+         not early_stop):
     step_rng = prng.fold_in(rng, global_step)
     data_select_rng, update_rng, eval_rng = prng.split(step_rng, 3)
     start_time = time.time()
@@ -245,6 +254,7 @@ def train_once(workload: spec.Workload, batch_size: int, data_dir: str,
         last_eval_time = current_time
       eval_results.append((global_step, latest_eval_result))
       goal_reached = workload.has_reached_goal(latest_eval_result)
+      early_stop = early_stop_check(latest_eval_result, global_step)
       record.save_eval(workload, hyperparameters, trial_idx, global_step,
                        batch_size, latest_eval_result, global_start_time,
                        accumulated_submission_time, goal_reached,
