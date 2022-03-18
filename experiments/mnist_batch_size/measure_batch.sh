@@ -8,20 +8,8 @@
 # set -e # exit on error
 
 
-EARLY_STOPPING_CONFIG='mnist_early_stopping_config.json'
-cat <<EOF > mnist_early_stopping_config.json
-{
-  "metric_name": "loss",
-  "min_delta": 0,
-  "patience": 5,
-  "min_steps": 58,
-  "max_steps": 290,
-  "mode": "min",
-  "baseline": null
-}
-EOF
 
-ACTIVATIONS='sigmoid relu'
+ACTIVATIONS='relu'
 for ACTIVATION in $ACTIVATIONS
 do
     LOG_DIR=./experiments/mnist_batch_size/logs/$ACTIVATION
@@ -29,8 +17,7 @@ do
 
     # Full data collection
     NUM_TRIALS='1'
-    TARGET_VALUE='0.3'
-    EVAL_FREQUENCY_OVERRIDE='1 step'
+    TARGET_VALUE='0.7'
 
     # Quick data collection
     # NUM_TRIALS='1'
@@ -40,6 +27,22 @@ do
     while IFS=, read -r architecture batch_size trial_id step_to_threshold learning_rate train_cross_entropy_error train_classification_error val_cross_entropy_error val_classification_error best_config_path; do
         echo "INPUT CONFIG: arch $architecture, batch $batch_size, lr $learning_rate";
         LOG_DIR_SUB_EXPERIMENT=$LOG_DIR/$architecture/$batch_size
+
+        EVAL_FREQUENCY_OVERRIDE=$(echo $(( step_to_threshold / 20 )))
+        step_to_threshold_increased=$(echo $(( step_to_threshold + 58 )))
+
+        EARLY_STOPPING_CONFIG='mnist_early_stopping_config.json'
+        cat <<EOF > mnist_early_stopping_config.json
+{
+"metric_name": "loss",
+"min_delta": 0,
+"patience": 5,
+"min_steps": 58,
+"max_steps": $step_to_threshold_increased,
+"mode": "min",
+"baseline": null
+}
+EOF
         set -x
         mkdir -p $LOG_DIR_SUB_EXPERIMENT
     python3 algorithmic_efficiency/submission_runner.py \
@@ -49,7 +52,7 @@ do
         --tuning_search_space=baselines/mnist/tuning_search_space.json \
         --num_tuning_trials=$NUM_TRIALS \
         --logging_dir=$LOG_DIR_SUB_EXPERIMENT \
-        --eval_frequency_override="$EVAL_FREQUENCY_OVERRIDE" \
+        --eval_frequency_override="$EVAL_FREQUENCY_OVERRIDE step" \
         --early_stopping_config="$EARLY_STOPPING_CONFIG" \
         --extra_metadata="batch_science.architecture=$architecture" \
         --extra_metadata="batch_science.batch_size=$batch_size" \
@@ -78,10 +81,19 @@ echo "[INFO $(date +"%d-%I:%M%p")] Generated files:"
 find $LOG_DIR
 
 # # Check status of each experiment (requires zsh)
-# for FILE in ./experiments/mnist_batch_size/logs/**/*.json
-# do
-#     STATUS=$(cat $FILE | jq -r '.status')
-#     echo "$STATUS $FILE"
-# done
+for FILE in ./experiments/mnist_batch_size/logs*/**/trial_1/*.json
+do
+    STATUS=$(cat $FILE | jq -r '.status')
+    global_step=$(cat $FILE | jq -r '.global_step')
+    accuracy=$(cat $FILE | jq -r '.accuracy')
+    step_to_threshold=$(cat $FILE | jq -r '."extra.batch_science.step_to_threshold"')
+    echo "$STATUS theirs $step_to_threshold ours $global_step $accuracy $FILE"
+done
+
+for FILE in ./experiments/mnist_batch_size/logs*/**/trial_1/*.json
+do
+    early_stop=$(cat $FILE | jq -r '.early_stop')
+    echo "$early_stop $FILE"
+done
 
 echo "[INFO $(date +"%d-%I:%M%p")] Finished."

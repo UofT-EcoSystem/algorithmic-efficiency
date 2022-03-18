@@ -6,6 +6,7 @@ from flax import linen as nn
 import jax
 import jax.numpy as jnp
 import tensorflow as tf
+import numpy as np
 import tensorflow_datasets as tfds
 from workloads.mnist.workload import Mnist
 
@@ -38,33 +39,33 @@ class _Model(nn.Module):
       else:
         activation = nn.sigmoid
       if FLAGS.architecture == 'FC-1024':
-        x = nn.Dense(features=1024, use_bias=True)(x)
+        x = nn.Dense(features=1024, use_bias=True, kernel_init=jax.nn.initializers.glorot_uniform())(x)
         x = activation(x)
         x = dropout(x)
       if FLAGS.architecture == 'FC-128-128-128':
-        x = nn.Dense(features=128, use_bias=True)(x)
+        x = nn.Dense(features=128, use_bias=True, kernel_init=jax.nn.initializers.glorot_uniform())(x)
         x = activation(x)
         x = dropout(x)
-        x = nn.Dense(features=128, use_bias=True)(x)
+        x = nn.Dense(features=128, use_bias=True, kernel_init=jax.nn.initializers.glorot_uniform())(x)
         x = activation(x)
         x = dropout(x)
-        x = nn.Dense(features=128, use_bias=True)(x)
+        x = nn.Dense(features=128, use_bias=True, kernel_init=jax.nn.initializers.glorot_uniform())(x)
         x = activation(x)
         x = dropout(x)
       if FLAGS.architecture == 'FC-2048-2048-2048':
-        x = nn.Dense(features=2048, use_bias=True)(x)
+        x = nn.Dense(features=2048, use_bias=True, kernel_init=jax.nn.initializers.glorot_uniform())(x)
         x = activation(x)
         x = dropout(x)
-        x = nn.Dense(features=2048, use_bias=True)(x)
+        x = nn.Dense(features=2048, use_bias=True, kernel_init=jax.nn.initializers.glorot_uniform())(x)
         x = activation(x)
         x = dropout(x)
-        x = nn.Dense(features=2048, use_bias=True)(x)
+        x = nn.Dense(features=2048, use_bias=True, kernel_init=jax.nn.initializers.glorot_uniform())(x)
         x = activation(x)
         x = dropout(x)
     else:
-      x = nn.Dense(features=num_hidden, use_bias=True)(x)
+      x = nn.Dense(features=num_hidden, use_bias=True, kernel_init=jax.nn.initializers.glorot_uniform())(x)
       x = nn.sigmoid(x)
-    x = nn.Dense(features=num_classes, use_bias=True)(x)
+    x = nn.Dense(features=num_classes, use_bias=True, kernel_init=jax.nn.initializers.glorot_uniform())(x)
     x = nn.log_softmax(x)
     return x
 
@@ -77,7 +78,12 @@ class MnistWorkload(Mnist):
     self._model = _Model()
 
   def _normalize(self, image):
-    return (tf.cast(image, tf.float32) - self.train_mean) / self.train_stddev
+    image = tf.cast(image, tf.float32)
+    _min = tf.math.reduce_min(image)
+    _max = tf.math.reduce_max(image)
+    image = (image - _min) / (_max - _min)
+    return image
+    # return (tf.cast(image, tf.float32) - self.train_mean) / self.train_stddev
 
   def _build_dataset(self, data_rng: jax.random.PRNGKey, split: str,
                      data_dir: str, batch_size):

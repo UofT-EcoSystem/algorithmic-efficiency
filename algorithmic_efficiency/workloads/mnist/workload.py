@@ -57,8 +57,6 @@ class Mnist(spec.Workload):
     """Run a full evaluation of the model."""
     data_rng, model_rng = prng.split(rng, 2)
     eval_batch_size = 2000
-    if 'batch_size' in FLAGS and FLAGS.batch_size:
-      eval_batch_size = FLAGS.batch_size
     self._eval_ds = self.build_input_queue(
         data_rng, 'test', data_dir, batch_size=eval_batch_size)
 
