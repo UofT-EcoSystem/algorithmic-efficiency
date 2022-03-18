@@ -7,6 +7,20 @@
 
 # set -e # exit on error
 
+
+EARLY_STOPPING_CONFIG='mnist_early_stopping_config.json'
+cat <<EOF > mnist_early_stopping_config.json
+{
+  "metric_name": "loss",
+  "min_delta": 0,
+  "patience": 5,
+  "min_steps": 58,
+  "max_steps": 290,
+  "mode": "min",
+  "baseline": null
+}
+EOF
+
 ACTIVATIONS='sigmoid relu'
 for ACTIVATION in $ACTIVATIONS
 do
@@ -15,7 +29,8 @@ do
 
     # Full data collection
     NUM_TRIALS='1'
-    TARGET_VALUE='0.7'
+    TARGET_VALUE='0.3'
+    EVAL_FREQUENCY_OVERRIDE='1 step'
 
     # Quick data collection
     # NUM_TRIALS='1'
@@ -33,7 +48,9 @@ do
         --submission_path=baselines/mnist/mnist_jax/submission.py \
         --tuning_search_space=baselines/mnist/tuning_search_space.json \
         --num_tuning_trials=$NUM_TRIALS \
-        --log_dir=$LOG_DIR_SUB_EXPERIMENT \
+        --logging_dir=$LOG_DIR_SUB_EXPERIMENT \
+        --eval_frequency_override="$EVAL_FREQUENCY_OVERRIDE" \
+        --early_stopping_config="$EARLY_STOPPING_CONFIG" \
         --extra_metadata="batch_science.architecture=$architecture" \
         --extra_metadata="batch_science.batch_size=$batch_size" \
         --extra_metadata="batch_science.trial_id=$trial_id" \

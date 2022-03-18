@@ -41,7 +41,7 @@ class Mnist(spec.Workload):
 
   @property
   def max_allowed_runtime_sec(self):
-    return 900
+    return 300
 
   @property
   def eval_period_time_sec(self):
