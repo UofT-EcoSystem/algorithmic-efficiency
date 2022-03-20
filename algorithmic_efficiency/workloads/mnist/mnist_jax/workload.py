@@ -6,23 +6,65 @@ from flax import linen as nn
 import jax
 import jax.numpy as jnp
 import tensorflow as tf
+import numpy as np
 import tensorflow_datasets as tfds
+from workloads.mnist.workload import Mnist
 
 from algorithmic_efficiency import spec
-from algorithmic_efficiency.workloads.mnist.workload import Mnist
+
+from absl import flags
+
+FLAGS = flags.FLAGS
 
 
 class _Model(nn.Module):
 
   @nn.compact
   def __call__(self, x: spec.Tensor, train: bool):
-    del train
     input_size = 28 * 28
     num_hidden = 128
     num_classes = 10
     x = x.reshape((x.shape[0], input_size))  # Flatten.
-    x = nn.Dense(features=num_hidden, use_bias=True)(x)
-    x = nn.sigmoid(x)
+
+
+
+    if 'architecture' in FLAGS and FLAGS.architecture:
+      def dropout(x):
+        if train:
+          return nn.Dropout(rate=0.4)(x, deterministic=True)
+        else:
+          return x
+      if FLAGS.activation == 'relu':
+        activation = nn.relu
+      else:
+        activation = nn.sigmoid
+      if FLAGS.architecture == 'FC-1024':
+        x = nn.Dense(features=1024, use_bias=True)(x)
+        x = activation(x)
+        x = dropout(x)
+      if FLAGS.architecture == 'FC-128-128-128':
+        x = nn.Dense(features=128, use_bias=True)(x)
+        x = activation(x)
+        x = dropout(x)
+        x = nn.Dense(features=128, use_bias=True)(x)
+        x = activation(x)
+        x = dropout(x)
+        x = nn.Dense(features=128, use_bias=True)(x)
+        x = activation(x)
+        x = dropout(x)
+      if FLAGS.architecture == 'FC-2048-2048-2048':
+        x = nn.Dense(features=2048, use_bias=True)(x)
+        x = activation(x)
+        x = dropout(x)
+        x = nn.Dense(features=2048, use_bias=True)(x)
+        x = activation(x)
+        x = dropout(x)
+        x = nn.Dense(features=2048, use_bias=True)(x)
+        x = activation(x)
+        x = dropout(x)
+    else:
+      x = nn.Dense(features=num_hidden, use_bias=True)(x)
+      x = nn.sigmoid(x)
     x = nn.Dense(features=num_classes, use_bias=True)(x)
     x = nn.log_softmax(x)
     return x
@@ -36,27 +78,26 @@ class MnistWorkload(Mnist):
     self._model = _Model()
 
   def _normalize(self, image):
-    return (tf.cast(image, tf.float32) - self.train_mean) / self.train_stddev
+    image = tf.cast(image, tf.float32)
+    _min = tf.math.reduce_min(image)
+    _max = tf.math.reduce_max(image)
+    image = (image - _min) / (_max - _min)
+    return image
+    # return (tf.cast(image, tf.float32) - self.train_mean) / self.train_stddev
 
-  def _build_dataset(self,
-                     data_rng: jax.random.PRNGKey,
-                     split: str,
-                     data_dir: str,
-                     batch_size):
+  def _build_dataset(self, data_rng: jax.random.PRNGKey, split: str,
+                     data_dir: str, batch_size):
     ds = tfds.load('mnist', split=split)
     ds = ds.cache()
-    ds = ds.map(lambda x: (self._normalize(x['image']), x['label'], None))
+    ds = ds.map(lambda x: (self._normalize(x['image']), x['label']))
     if split == 'train':
       ds = ds.shuffle(1024, seed=data_rng[0])
       ds = ds.repeat()
     ds = ds.batch(batch_size)
     return tfds.as_numpy(ds)
 
-  def build_input_queue(self,
-                        data_rng: jax.random.PRNGKey,
-                        split: str,
-                        data_dir: str,
-                        batch_size: int):
+  def build_input_queue(self, data_rng: jax.random.PRNGKey, split: str,
+                        data_dir: str, batch_size: int):
     return iter(self._build_dataset(data_rng, split, data_dir, batch_size))
 
   @property
@@ -75,19 +116,15 @@ class MnistWorkload(Mnist):
   def is_output_params(self, param_key: spec.ParameterKey) -> bool:
     pass
 
-  def preprocess_for_train(self,
-                           selected_raw_input_batch: spec.Tensor,
+  def preprocess_for_train(self, selected_raw_input_batch: spec.Tensor,
                            selected_label_batch: spec.Tensor,
-                           train_mean: spec.Tensor,
-                           train_stddev: spec.Tensor,
+                           train_mean: spec.Tensor, train_stddev: spec.Tensor,
                            rng: spec.RandomState) -> spec.Tensor:
     del rng
     return selected_raw_input_batch, selected_label_batch
 
-  def preprocess_for_eval(self,
-                          raw_input_batch: spec.Tensor,
-                          raw_label_batch: spec.Tensor,
-                          train_mean: spec.Tensor,
+  def preprocess_for_eval(self, raw_input_batch: spec.Tensor,
+                          raw_label_batch: spec.Tensor, train_mean: spec.Tensor,
                           train_stddev: spec.Tensor) -> spec.Tensor:
     del train_mean
     del train_stddev
@@ -102,8 +139,7 @@ class MnistWorkload(Mnist):
 
   # Keep this separate from the loss function in order to support optimizers
   # that use the logits.
-  def output_activation_fn(self,
-                           logits_batch: spec.Tensor,
+  def output_activation_fn(self, logits_batch: spec.Tensor,
                            loss_type: spec.LossType) -> spec.Tensor:
     if loss_type == spec.LossType.SOFTMAX_CROSS_ENTROPY:
       return jax.nn.softmax(logits_batch, axis=-1)
@@ -113,11 +149,8 @@ class MnistWorkload(Mnist):
       return logits_batch
 
   def model_fn(
-      self,
-      params: spec.ParameterContainer,
-      augmented_and_preprocessed_input_batch: spec.Tensor,
-      model_state: spec.ModelAuxiliaryState,
-      mode: spec.ForwardPassMode,
+      self, params: spec.ParameterContainer, input_batch: spec.Tensor,
+      model_state: spec.ModelAuxiliaryState, mode: spec.ForwardPassMode,
       rng: spec.RandomState,
       update_batch_norm: bool) -> Tuple[spec.Tensor, spec.ModelAuxiliaryState]:
     del model_state
@@ -125,7 +158,7 @@ class MnistWorkload(Mnist):
     del update_batch_norm
     train = mode == spec.ForwardPassMode.TRAIN
     logits_batch = self._model.apply({'params': params},
-                                     augmented_and_preprocessed_input_batch,
+                                     input_batch,
                                      train=train)
     return logits_batch, None
 

@@ -1,6 +1,11 @@
-from algorithmic_efficiency import random_utils as prng
+import random_utils as prng
 
 from algorithmic_efficiency import spec
+
+import flax
+from absl import flags
+
+FLAGS = flags.FLAGS
 
 
 class Mnist(spec.Workload):
@@ -10,6 +15,8 @@ class Mnist(spec.Workload):
 
   @property
   def target_value(self):
+    if 'target_value' in FLAGS and FLAGS.target_value:
+      return FLAGS.target_value
     return 0.9
 
   @property
@@ -21,11 +28,7 @@ class Mnist(spec.Workload):
     return 60000
 
   @property
-  def num_eval_train_examples(self):
-    return 60000
-
-  @property
-  def num_validation_examples(self):
+  def num_eval_examples(self):
     return 10000
 
   @property
@@ -38,20 +41,18 @@ class Mnist(spec.Workload):
 
   @property
   def max_allowed_runtime_sec(self):
-    return 60
+    return 300
 
   @property
   def eval_period_time_sec(self):
-    return 10
+    return 60
 
   def _eval_metric(self, logits, labels):
     """Return the mean accuracy and loss as a dict."""
     raise NotImplementedError
 
-  def eval_model(self,
-                 params: spec.ParameterContainer,
-                 model_state: spec.ModelAuxiliaryState,
-                 rng: spec.RandomState,
+  def eval_model(self, params: spec.ParameterContainer,
+                 model_state: spec.ModelAuxiliaryState, rng: spec.RandomState,
                  data_dir: str):
     """Run a full evaluation of the model."""
     data_rng, model_rng = prng.split(rng, 2)
@@ -64,7 +65,12 @@ class Mnist(spec.Workload):
         'loss': 0.,
     }
     n_data = 0
-    for (images, labels, _) in self._eval_ds:
+    dropout_rate = 0.4
+    params2 = params.unfreeze()
+    for key in params.keys():
+      params2[key]["kernel"] = params[key]["kernel"] * (1.0 - dropout_rate)
+    params = flax.core.frozen_dict.freeze(params2)
+    for (images, labels) in self._eval_ds:
       images, labels = self.preprocess_for_eval(images, labels, None, None)
       logits, _ = self.model_fn(
           params,
