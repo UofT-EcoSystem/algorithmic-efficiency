@@ -98,7 +98,7 @@ do
 done
 
 # rebuild best parameters csv
-echo "architecture,batch_size,trial_id,step_to_threshold,learning_rate,train.cross_entropy_error,train.classification_error,val.cross_entropy_error,val.classification_error,best_config_path" | tee out.csv
+echo "architecture,batch_size,trial_id,step_to_threshold,learning_rate,train.cross_entropy_error,train.classification_error,val.cross_entropy_error,val.classification_error,best_config_path" > out.csv
 for FILE in ./experiments/mnist_batch_size/logs*/**/trial_1/*.json
 do
     STATUS=$(cat $FILE | jq -r '.status')
@@ -110,14 +110,14 @@ do
     batch_size=$(cat $FILE | jq -r .'"batch_size"')
     trial_id=$(cat $FILE | jq -r .'"extra.batch_science.trial_id"')
     step_to_threshold=$(cat $FILE | jq -r .'"global_step"')
-    learning_rate=$(cat $FILE | jq -r .'"learning_rate"')
-    train.cross_entropy_error=$(cat $FILE | jq -r .'"train.cross_entropy_error"')
-    train.classification_error=$(cat $FILE | jq -r .'"train.classification_error"')
-    val.cross_entropy_error=$(cat $FILE | jq -r .'"val.cross_entropy_error"')
-    val.classification_error=$(cat $FILE | jq -r .'"val.classification_error"')
-    best_config_path=$(cat $FILE | jq -r .'"best_config_path"')
+    learning_rate=$(cat $FILE | jq -r .'"extra.batch_science.learning_rate"')
+    train_cross_entropy_error=$(cat $FILE | jq -r .'"extra.batch_science.train_cross_entropy_error"')
+    train_classification_error=$(cat $FILE | jq -r .'"extra.batch_science.train_classification_error"')
+    val_cross_entropy_error=$(cat $FILE | jq -r .'"extra.batch_science.val_cross_entropy_error"')
+    val_classification_error=$(cat $FILE | jq -r .'"extra.batch_science.val_classification_error"')
+    best_config_path=$(cat $FILE | jq -r .'"extra.batch_science.best_config_path"')
 
-    echo "$STATUS theirs $step_to_threshold ours $global_step $accuracy $FILE" | tee out.csv
+    echo "$architecture,$batch_size,$trial_id,$step_to_threshold,$learning_rate,$train_cross_entropy_error,$train_classification_error,$val_cross_entropy_error,$val_classification_error,$best_config_path" | tee -a out.csv
 done
 
 
