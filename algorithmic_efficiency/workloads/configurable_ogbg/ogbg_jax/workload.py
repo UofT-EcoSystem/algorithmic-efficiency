@@ -26,8 +26,13 @@ class OGBGWorkload(OGBG):
     self._param_shapes = None
     self._init_graphs = None
     extra_metadata = _get_extra_metadata_as_dict(FLAGS.extra_metadata)
-    # self._model = models.GNN(extra_metadata)
-    self._model = models.GNN()
+    latent_dim = int(extra_metadata.get('extra.ogbg_config.latent_dim', 256))
+    hidden_dims = int(extra_metadata.get('extra.ogbg_config.hidden_dims', 256))
+    hidden_dims = (hidden_dims,)
+    dropout_rate = float(extra_metadata.get('extra.ogbg_config.dropout_rate', 0.1))
+    num_message_passing_steps = int(extra_metadata.get('extra.ogbg_config.num_message_passing_steps', 5))
+    activation = extra_metadata.get('extra.ogbg_config.activation', 'relu')
+    self._model = models.GNN(latent_dim=latent_dim, hidden_dims=hidden_dims, dropout_rate=dropout_rate, num_message_passing_steps=num_message_passing_steps, activation=activation)
 
   def _build_iterator(self,
                       data_rng: jax.random.PRNGKey,

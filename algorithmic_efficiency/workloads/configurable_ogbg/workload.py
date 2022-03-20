@@ -14,12 +14,10 @@ class OGBG(spec.Workload):
   @property
   def target_value(self):
     extra_metadata = _get_extra_metadata_as_dict(FLAGS.extra_metadata)
-    target_value = extra_metadata.get('extra.ogbg_config.target_value', None)
-    if target_value:
-        return float(target_value)
+    target_value = float(extra_metadata.get('extra.ogbg_config.target_value', 0.24))
     # From Flax example
     # https://tensorboard.dev/experiment/AAJqfvgSRJaA1MBkc0jMWQ/#scalars.
-    return 0.24
+    return target_value
 
   @property
   def loss_type(self):
@@ -47,8 +45,8 @@ class OGBG(spec.Workload):
 
   @property
   def max_allowed_runtime_sec(self):
-    return 7200  # 2h non-default
+    return 10000  # 3h non-default
 
   @property
   def eval_period_time_sec(self):
-    return 10 # non-default
+    return 60 # non-default
