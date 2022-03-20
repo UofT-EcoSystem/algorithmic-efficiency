@@ -38,8 +38,8 @@ class OGBG(spec.Workload):
 
   @property
   def max_allowed_runtime_sec(self):
-    return 32000  # 3h20m
+    return 7200  # 2h non-default
 
   @property
   def eval_period_time_sec(self):
-    return 600
+    return 10 # non-default
