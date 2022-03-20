@@ -1,5 +1,6 @@
 from typing import Iterator, List, Optional, Tuple
 
+from absl import flags
 from flax import jax_utils
 import jax
 from jax import lax
@@ -7,10 +8,16 @@ import jax.numpy as jnp
 import optax
 
 from algorithmic_efficiency import spec
+from algorithmic_efficiency.logging_utils import _get_extra_metadata_as_dict
+
+FLAGS = flags.FLAGS
 
 
 def get_batch_size(workload_name):
-  # Return the global batch size.
+  extra_metadata = _get_extra_metadata_as_dict(FLAGS.extra_metadata)
+  batch_size = extra_metadata.get('extra.ogbg_config.batch_size', None)
+  if batch_size:
+      return int(batch_size)
   batch_sizes = {'configurable_ogb_jax': 2048}
   return batch_sizes[workload_name]
 
@@ -24,12 +31,15 @@ def init_optimizer_state(workload: spec.Workload,
   del model_params
   del model_state
   del rng
-  params_zeros_like = jax.tree_map(lambda s: jnp.zeros(s.shape_tuple),
-                                   workload.param_shapes)
-  opt_init_fn, opt_update_fn = opt_init_fn, opt_update_fn = optax.adam(
-      learning_rate=hyperparameters.learning_rate)
-  optimizer_state = opt_init_fn(params_zeros_like)
-  return jax_utils.replicate(optimizer_state), opt_update_fn
+  extra_metadata = _get_extra_metadata_as_dict(FLAGS.extra_metadata)
+  optimizer_name = extra_metadata.get('extra.ogbg_config.optimizer', 'adam')
+  if optimizer_name == 'adam':
+    params_zeros_like = jax.tree_map(lambda s: jnp.zeros(s.shape_tuple),
+                                    workload.param_shapes)
+    opt_init_fn, opt_update_fn = opt_init_fn, opt_update_fn = optax.adam(
+        learning_rate=hyperparameters.learning_rate)
+    optimizer_state = opt_init_fn(params_zeros_like)
+    return jax_utils.replicate(optimizer_state), opt_update_fn
 
 
 def train_step(workload,

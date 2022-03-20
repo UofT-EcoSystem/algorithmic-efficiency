@@ -7,6 +7,7 @@ import jax.numpy as jnp
 import jraph
 
 
+
 def _make_embed(latent_dim):
 
   def make_fn(inputs):
@@ -41,6 +42,9 @@ class GNN(nn.Module):
   hidden_dims: Tuple[int] = (256,)
   dropout_rate: float = 0.1
   num_message_passing_steps: int = 5
+
+  # def __init__(self, extra_metadata):
+  #   pass
 
   @nn.compact
   def __call__(self, graph, train):

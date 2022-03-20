@@ -3,6 +3,7 @@ import functools
 import itertools
 from typing import Optional, Tuple
 
+from absl import flags
 from flax import jax_utils
 import jax
 import jax.numpy as jnp
@@ -13,6 +14,9 @@ from algorithmic_efficiency.workloads.ogbg.ogbg_jax import input_pipeline
 from algorithmic_efficiency.workloads.ogbg.ogbg_jax import metrics
 from algorithmic_efficiency.workloads.ogbg.ogbg_jax import models
 from algorithmic_efficiency.workloads.ogbg.workload import OGBG
+from algorithmic_efficiency.logging_utils import _get_extra_metadata_as_dict
+
+FLAGS = flags.FLAGS
 
 
 class OGBGWorkload(OGBG):
@@ -21,6 +25,8 @@ class OGBGWorkload(OGBG):
     self._eval_iterator = None
     self._param_shapes = None
     self._init_graphs = None
+    extra_metadata = _get_extra_metadata_as_dict(FLAGS.extra_metadata)
+    # self._model = models.GNN(extra_metadata)
     self._model = models.GNN()
 
   def _build_iterator(self,

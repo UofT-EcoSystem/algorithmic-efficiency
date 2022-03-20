@@ -1,4 +1,9 @@
+from absl import flags
+
 from algorithmic_efficiency import spec
+from algorithmic_efficiency.logging_utils import _get_extra_metadata_as_dict
+
+FLAGS = flags.FLAGS
 
 
 class OGBG(spec.Workload):
@@ -8,6 +13,10 @@ class OGBG(spec.Workload):
 
   @property
   def target_value(self):
+    extra_metadata = _get_extra_metadata_as_dict(FLAGS.extra_metadata)
+    target_value = extra_metadata.get('extra.ogbg_config.target_value', None)
+    if target_value:
+        return float(target_value)
     # From Flax example
     # https://tensorboard.dev/experiment/AAJqfvgSRJaA1MBkc0jMWQ/#scalars.
     return 0.24
