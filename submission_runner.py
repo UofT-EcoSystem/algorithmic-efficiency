@@ -63,6 +63,10 @@ WORKLOADS = {
         'workload_path': BASE_WORKLOADS_DIR + 'ogbg/ogbg_jax/workload.py',
         'workload_class_name': 'OGBGWorkload',
     },
+    'configurable_ogb_jax': {
+        'workload_path': BASE_WORKLOADS_DIR + 'configurable_ogbg/ogbg_jax/workload.py',
+        'workload_class_name': 'OGBGWorkload',
+    },
     'librispeech_pytorch': {
         'workload_path':
             BASE_WORKLOADS_DIR + 'librispeech/librispeech_pytorch/workload.py',
