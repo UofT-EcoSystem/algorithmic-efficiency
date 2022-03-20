@@ -10,8 +10,8 @@ import pandas as pd
 import seaborn as sns
 
 # Read Data
-input_file = './out.csv'
 input_file = '/home/dans/algorithmic-efficiency/best_parameters_full.csv'
+input_file = './out.csv'
 df = pd.read_csv(input_file)
 
 # Plot
@@ -27,4 +27,4 @@ plt.yscale('log', base=2)
 
 
 # Save
-fig.savefig('plot_batch_best_parameters_full.png', transparent=False, dpi=160, bbox_inches="tight")
+fig.savefig('plot_batch_test.png', transparent=False, dpi=160, bbox_inches="tight")

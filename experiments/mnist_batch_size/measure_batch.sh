@@ -16,7 +16,7 @@ do
     mkdir -p $LOG_DIR/
 
     # Full data collection
-    NUM_TRIALS='1'
+    NUM_TRIALS='3'
     TARGET_VALUE='0.7'
 
     # Quick data collection
@@ -28,7 +28,7 @@ do
         echo "INPUT CONFIG: arch $architecture, batch $batch_size, lr $learning_rate";
         LOG_DIR_SUB_EXPERIMENT=$LOG_DIR/$architecture/$batch_size
 
-        EVAL_FREQUENCY_OVERRIDE=$(echo $(( step_to_threshold / 20 )))
+        EVAL_FREQUENCY_OVERRIDE=$(echo $(( step_to_threshold / 300 )))
         step_to_threshold_increased=$(echo $(( step_to_threshold + 58 )))
 
         EARLY_STOPPING_CONFIG='mnist_early_stopping_config.json'
@@ -80,8 +80,11 @@ done
 echo "[INFO $(date +"%d-%I:%M%p")] Generated files:"
 find $LOG_DIR
 
+echo "[INFO $(date +"%d-%I:%M%p")] Finished."
+exit 0
+
 # # Check status of each experiment (requires zsh)
-for FILE in ./experiments/mnist_batch_size/logs*/**/trial_1/*.json
+for FILE in ./experiments/mnist_batch_size/logs*/**/trial_*/*.json
 do
     STATUS=$(cat $FILE | jq -r '.status')
     global_step=$(cat $FILE | jq -r '.global_step')
@@ -91,7 +94,7 @@ do
 done
 
 # only one field
-for FILE in ./experiments/mnist_batch_size/logs*/**/trial_1/*.json
+for FILE in ./experiments/mnist_batch_size/logs*/**/trial_*/*.json
 do
     early_stop=$(cat $FILE | jq -r '.early_stop')
     echo "$early_stop $FILE"
@@ -99,7 +102,7 @@ done
 
 # rebuild best parameters csv
 echo "architecture,batch_size,trial_id,step_to_threshold,learning_rate,train.cross_entropy_error,train.classification_error,val.cross_entropy_error,val.classification_error,best_config_path" > out.csv
-for FILE in ./experiments/mnist_batch_size/logs*/**/trial_1/*.json
+for FILE in ./experiments/mnist_batch_size/logs*/**/trial_*/*.json
 do
     STATUS=$(cat $FILE | jq -r '.status')
     global_step=$(cat $FILE | jq -r '.global_step')
@@ -121,4 +124,3 @@ do
 done
 
 
-echo "[INFO $(date +"%d-%I:%M%p")] Finished."
