@@ -21,7 +21,11 @@ class OGBG(spec.Workload):
     return 350343
 
   @property
-  def num_eval_examples(self):
+  def num_eval_train_examples(self):
+    return 350343
+
+  @property
+  def num_validation_examples(self):
     return 43793
 
   @property
@@ -34,8 +38,8 @@ class OGBG(spec.Workload):
 
   @property
   def max_allowed_runtime_sec(self):
-    return 12000  # 3h20m
+    return 32000  # 3h20m
 
   @property
   def eval_period_time_sec(self):
-    return 120
+    return 600
