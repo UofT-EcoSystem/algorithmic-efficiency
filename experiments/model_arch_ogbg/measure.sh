@@ -3,11 +3,11 @@
 # Author: Daniel Snider <danielsnider12@gmail.com>
 #
 # Usage:
-# bash ./experiments/model_arch_mnist/measure_example.sh 2>&1 | tee -a ./experiments/model_arch_mnist/logs/console_output.log
+# bash ./experiments/model_arch_ogbg/measure_example.sh 2>&1 | tee -a ./experiments/model_arch_ogbg/logs/console_output.log
 
 set -e # exit on error
 
-LOGGING_DIR='./experiments/model_arch_mnist/logs'
+LOGGING_DIR='./experiments/model_arch_ogbg/logs'
 rm -rf $LOGGING_DIR
 mkdir -p $LOGGING_DIR
 
@@ -108,7 +108,7 @@ done
 # find $LOG_DIR
 
 # # Check status of each experiment (requires zsh)
-# for FILE in ./experiments/model_arch_mnist/logs/**/*.json
+# for FILE in ./experiments/model_arch_ogbg/logs/**/*.json
 # do
 #   STATUS=$(cat $FILE | jq -r '.status')
 #   echo "$STATUS $FILE"
