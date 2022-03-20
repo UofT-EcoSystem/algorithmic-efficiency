@@ -39,33 +39,33 @@ class _Model(nn.Module):
       else:
         activation = nn.sigmoid
       if FLAGS.architecture == 'FC-1024':
-        x = nn.Dense(features=1024, use_bias=True, kernel_init=jax.nn.initializers.glorot_uniform())(x)
+        x = nn.Dense(features=1024, use_bias=True)(x)
         x = activation(x)
         x = dropout(x)
       if FLAGS.architecture == 'FC-128-128-128':
-        x = nn.Dense(features=128, use_bias=True, kernel_init=jax.nn.initializers.glorot_uniform())(x)
+        x = nn.Dense(features=128, use_bias=True)(x)
         x = activation(x)
         x = dropout(x)
-        x = nn.Dense(features=128, use_bias=True, kernel_init=jax.nn.initializers.glorot_uniform())(x)
+        x = nn.Dense(features=128, use_bias=True)(x)
         x = activation(x)
         x = dropout(x)
-        x = nn.Dense(features=128, use_bias=True, kernel_init=jax.nn.initializers.glorot_uniform())(x)
+        x = nn.Dense(features=128, use_bias=True)(x)
         x = activation(x)
         x = dropout(x)
       if FLAGS.architecture == 'FC-2048-2048-2048':
-        x = nn.Dense(features=2048, use_bias=True, kernel_init=jax.nn.initializers.glorot_uniform())(x)
+        x = nn.Dense(features=2048, use_bias=True)(x)
         x = activation(x)
         x = dropout(x)
-        x = nn.Dense(features=2048, use_bias=True, kernel_init=jax.nn.initializers.glorot_uniform())(x)
+        x = nn.Dense(features=2048, use_bias=True)(x)
         x = activation(x)
         x = dropout(x)
-        x = nn.Dense(features=2048, use_bias=True, kernel_init=jax.nn.initializers.glorot_uniform())(x)
+        x = nn.Dense(features=2048, use_bias=True)(x)
         x = activation(x)
         x = dropout(x)
     else:
-      x = nn.Dense(features=num_hidden, use_bias=True, kernel_init=jax.nn.initializers.glorot_uniform())(x)
+      x = nn.Dense(features=num_hidden, use_bias=True)(x)
       x = nn.sigmoid(x)
-    x = nn.Dense(features=num_classes, use_bias=True, kernel_init=jax.nn.initializers.glorot_uniform())(x)
+    x = nn.Dense(features=num_classes, use_bias=True)(x)
     x = nn.log_softmax(x)
     return x
 

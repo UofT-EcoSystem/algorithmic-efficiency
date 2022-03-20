@@ -90,10 +90,35 @@ do
     echo "$STATUS theirs $step_to_threshold ours $global_step $accuracy $FILE"
 done
 
+# only one field
 for FILE in ./experiments/mnist_batch_size/logs*/**/trial_1/*.json
 do
     early_stop=$(cat $FILE | jq -r '.early_stop')
     echo "$early_stop $FILE"
 done
+
+# rebuild best parameters csv
+echo "architecture,batch_size,trial_id,step_to_threshold,learning_rate,train.cross_entropy_error,train.classification_error,val.cross_entropy_error,val.classification_error,best_config_path" | tee out.csv
+for FILE in ./experiments/mnist_batch_size/logs*/**/trial_1/*.json
+do
+    STATUS=$(cat $FILE | jq -r '.status')
+    global_step=$(cat $FILE | jq -r '.global_step')
+    accuracy=$(cat $FILE | jq -r '.accuracy')
+    step_to_threshold=$(cat $FILE | jq -r '."extra.batch_science.step_to_threshold"')
+
+    architecture=$(cat $FILE | jq -r .'"extra.batch_science.architecture"')
+    batch_size=$(cat $FILE | jq -r .'"batch_size"')
+    trial_id=$(cat $FILE | jq -r .'"extra.batch_science.trial_id"')
+    step_to_threshold=$(cat $FILE | jq -r .'"global_step"')
+    learning_rate=$(cat $FILE | jq -r .'"learning_rate"')
+    train.cross_entropy_error=$(cat $FILE | jq -r .'"train.cross_entropy_error"')
+    train.classification_error=$(cat $FILE | jq -r .'"train.classification_error"')
+    val.cross_entropy_error=$(cat $FILE | jq -r .'"val.cross_entropy_error"')
+    val.classification_error=$(cat $FILE | jq -r .'"val.classification_error"')
+    best_config_path=$(cat $FILE | jq -r .'"best_config_path"')
+
+    echo "$STATUS theirs $step_to_threshold ours $global_step $accuracy $FILE" | tee out.csv
+done
+
 
 echo "[INFO $(date +"%d-%I:%M%p")] Finished."
