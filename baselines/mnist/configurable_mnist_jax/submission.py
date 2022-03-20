@@ -26,10 +26,10 @@ def get_batch_size(workload_name):
 
 def optimizer(hyperparameters):
   extra_metadata = _get_extra_metadata_as_dict(FLAGS.extra_metadata)
-  optimizer = extra_metadata.get('extra.mnist_config.optimizer', None)
-  if optimizer == 'sgd':
-    opt_init_fn, opt_update_fn = optax.sgd(learning_rate=learning_rate)
-  elif optimizer == 'adam':
+  optimizer_name = extra_metadata.get('extra.mnist_config.optimizer', None)
+  if optimizer_name == 'sgd':
+    opt_init_fn, opt_update_fn = optax.sgd(learning_rate=hyperparameters.learning_rate)
+  elif optimizer_name == 'adam':
     opt_init_fn, opt_update_fn = optax.chain(
         optax.scale_by_adam(
             b1=1.0 - hyperparameters.one_minus_beta_1,
