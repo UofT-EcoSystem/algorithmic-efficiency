@@ -10,10 +10,10 @@ import jax.numpy as jnp
 
 from algorithmic_efficiency import random_utils as prng
 from algorithmic_efficiency import spec
-from algorithmic_efficiency.workloads.ogbg.ogbg_jax import input_pipeline
-from algorithmic_efficiency.workloads.ogbg.ogbg_jax import metrics
-from algorithmic_efficiency.workloads.ogbg.ogbg_jax import models
-from algorithmic_efficiency.workloads.ogbg.workload import OGBG
+from algorithmic_efficiency.workloads.configurable_ogbg.ogbg_jax import input_pipeline
+from algorithmic_efficiency.workloads.configurable_ogbg.ogbg_jax import metrics
+from algorithmic_efficiency.workloads.configurable_ogbg.ogbg_jax import models
+from algorithmic_efficiency.workloads.configurable_ogbg.workload import OGBG
 from algorithmic_efficiency.logging_utils import _get_extra_metadata_as_dict
 
 FLAGS = flags.FLAGS
@@ -31,7 +31,7 @@ class OGBGWorkload(OGBG):
     hidden_dims = (hidden_dims,)
     dropout_rate = float(extra_metadata.get('extra.ogbg_config.dropout_rate', 0.1))
     num_message_passing_steps = int(extra_metadata.get('extra.ogbg_config.num_message_passing_steps', 5))
-    activation = extra_metadata.get('extra.ogbg_config.activation', 'relu')
+    activation = extra_metadata.get('extra.ogbg_config.activation_fn', 'relu')
     self._model = models.GNN(latent_dim=latent_dim, hidden_dims=hidden_dims, dropout_rate=dropout_rate, num_message_passing_steps=num_message_passing_steps, activation=activation)
 
   def _build_iterator(self,

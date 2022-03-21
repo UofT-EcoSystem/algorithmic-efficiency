@@ -45,7 +45,10 @@ class OGBG(spec.Workload):
 
   @property
   def max_allowed_runtime_sec(self):
-    return 10000  # 3h non-default
+    extra_metadata = _get_extra_metadata_as_dict(FLAGS.extra_metadata)
+    max_allowed_runtime_sec = float(extra_metadata.get('extra.ogbg_config.max_allowed_runtime_sec', 10000)) # 3h non-default
+    return max_allowed_runtime_sec
+
 
   @property
   def eval_period_time_sec(self):
