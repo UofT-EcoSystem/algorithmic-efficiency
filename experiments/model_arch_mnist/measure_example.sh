@@ -49,9 +49,9 @@ EOF
 # Count number of experiments so that we can track progress
 activation_count=$( awk -F" " '{print NF-1}' <<<"${ACTIVATIONS}" )
 activation_count=$(echo $(( activation_count + 1 )))
-width_count=$( awk -F" " '{print NF-1}' <<<"${ACTIVATIONS}" )
+width_count=$( awk -F" " '{print NF-1}' <<<"${MODEL_WIDTHS}" )
 width_count=$(echo $(( width_count + 1 )))
-depth_count=$( awk -F" " '{print NF-1}' <<<"${ACTIVATIONS}" )
+depth_count=$( awk -F" " '{print NF-1}' <<<"${MODEL_DEPTHS}" )
 depth_count=$(echo $(( depth_count + 1 )))
 total=$(echo $((activation_count * width_count * depth_count)))
 iteration=1
