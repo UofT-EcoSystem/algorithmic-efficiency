@@ -120,4 +120,4 @@ do
     echo "$architecture,$batch_size,$trial_id,$step_to_threshold,$learning_rate,$train_cross_entropy_error,$train_classification_error,$val_cross_entropy_error,$val_classification_error,$best_config_path" | tee -a out.csv
 done
 
-
+python3 experiments/mnist_batch_size/plot_batch.py

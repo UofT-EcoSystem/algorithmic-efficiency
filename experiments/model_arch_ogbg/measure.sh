@@ -38,7 +38,7 @@ cat <<EOF > ogbg_early_stopping_config.json
   "min_delta": 0,
   "patience": 5,
   "min_steps": 100,
-  "max_steps": 5000,
+  "max_steps": 2000,
   "mode": "max",
   "baseline": null
 }
@@ -106,8 +106,8 @@ done
 # Combine all tuning trials into one CSV
 # python3 -c "from algorithmic_efficiency import logging_utils; logging_utils.concatenate_csvs('$LOG_DIR')"
 
-# echo "[INFO $(date +"%d-%I:%M%p")] Generated files:"
-# find $LOG_DIR
+echo "[INFO $(date +"%d-%I:%M%p")] Generated files:"
+find $LOG_DIR
 
 # # Check status of each experiment (requires zsh)
 # for FILE in ./experiments/model_arch_ogbg/logs/**/*.json
@@ -117,3 +117,19 @@ done
 # done
 
 echo "[INFO $(date +"%d-%I:%M%p")] Finished."
+
+exit 0
+
+# # Check status of each experiment (requires zsh)
+for FILE in ./experiments/model_arch_ogbg/logs*/**/trial_*/*.json
+do
+    STATUS=$(cat $FILE | jq -r '.status')
+    mean_average_precision=$(cat $FILE | jq -r '.mean_average_precision')
+    global_step=$(cat $FILE | jq -r '.global_step')
+    goal_reached=$(cat $FILE | jq -r '.goal_reached')
+    is_time_remaining=$(cat $FILE | jq -r '.is_time_remaining')
+    early_stop=$(cat $FILE | jq -r '.early_stop')
+    training_complete=$(cat $FILE | jq -r '.training_complete')
+
+    echo -e "$FILE \n  $STATUS mean_average_precision=$mean_average_precision global_step=$global_step goal_reached=$goal_reached is_time_remaining=$is_time_remaining early_stop=$early_stop training_complete=$training_complete \n"
+done
