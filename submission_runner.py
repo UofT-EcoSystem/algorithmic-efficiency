@@ -26,6 +26,7 @@ import tensorflow as tf
 from algorithmic_efficiency import halton
 from algorithmic_efficiency import random_utils as prng
 from algorithmic_efficiency import spec
+from algorithmic_efficiency import checkpoint
 
 # Hide any GPUs form TensorFlow. Otherwise TF might reserve memory and make
 # it unavailable to JAX.
@@ -69,7 +70,7 @@ WORKLOADS = {
 
 flags.DEFINE_string(
     'submission_path',
-    'algorithmic_efficiency/workloads/mnist_jax/submission.py',
+    'baselines/mnist/mnist_jax/submission.py',
     'The relative path of the Python file containing submission functions. '
     'NOTE: the submission dir must have an __init__.py file!')
 flags.DEFINE_string(
@@ -84,7 +85,7 @@ flags.DEFINE_enum(
     help='Which tuning ruleset to use.')
 flags.DEFINE_string(
     'tuning_search_space',
-    'algorithmic_efficiency/workloads/mnist/mnist_jax/tuning_search_space.json',
+    'baselines/mnist/tuning_search_space.json',
     'The path to the JSON file describing the external tuning search space.')
 flags.DEFINE_integer('num_tuning_trials',
                      20,
@@ -96,6 +97,14 @@ flags.DEFINE_enum(
     enum_values=['jax', 'pytorch'],
     help='Whether to use Jax or Pytorch for the submission. Controls among '
     'other things if the Jax or Numpy RNG library is used for RNG.')
+
+flags.DEFINE_string(
+  'cp_dir',
+  None,
+  help='The checkpoint directory. Path to directory in which model '
+  'checkpoints should be saved. By default only saves a checkpoint at'
+  'he end of each eval period.'
+)
 
 flags.DEFINE_integer(
   'console_verbosity', 0,
@@ -114,6 +123,24 @@ flags.DEFINE_string(
 
 FLAGS = flags.FLAGS
 
+flags.DEFINE_enum(
+  'cp_step',
+  'eval',
+  enum_values=['eval', 'epoch', 'step'],
+  help='The checkpoint step type. The unit used by cp_freq to '
+  'count how often to save a checkpoint'
+)
+
+flags.DEFINE_integer(
+  'cp_freq',
+  1,
+  lower_bound=1,
+  help='An integer N indicating how frequently to save a checkpoint, '
+  'where N is the number of evals, epochs or steps (see checkpoint_step flag) '
+  'to wait before saving another checkpoint. The final model is also saved'
+)
+
+FLAGS = flags.FLAGS
 
 def _convert_filepath_to_module(path: str):
   base, extension = os.path.splitext(path)
@@ -169,7 +196,9 @@ def train_once(workload: spec.Workload,
                update_params: spec.UpdateParamsFn,
                data_selection: spec.DataSelectionFn,
                hyperparameters: Optional[spec.Hyperparamters],
-               rng: spec.RandomState) -> Tuple[spec.Timing, spec.Steps]:
+               rng: spec.RandomState,
+               checkpointer: Optional[checkpoint.Checkpointer],
+               run_idx: int) -> Tuple[spec.Timing, spec.Steps]:
   data_rng, opt_init_rng, model_init_rng, rng = prng.split(rng, 4)
 
   if FLAGS.console_verbosity == 1:
@@ -197,6 +226,7 @@ def train_once(workload: spec.Workload,
   global_step = 0
   training_complete = False
   global_start_time = time.time()
+  num_checkpoints = 0
 
   logging.info('Starting training loop.')
   while (is_time_remaining and not goal_reached and not training_complete):
@@ -234,6 +264,7 @@ def train_once(workload: spec.Workload,
     accumulated_submission_time += current_time - start_time
     is_time_remaining = (
         accumulated_submission_time < workload.max_allowed_runtime_sec)
+
     # Check if submission is eligible for an untimed eval.
     if (current_time - last_eval_time >= workload.eval_period_time_sec or
         training_complete):
@@ -252,6 +283,19 @@ def train_once(workload: spec.Workload,
       last_eval_time = current_time
       eval_results.append((global_step, latest_eval_result))
       goal_reached = workload.has_reached_goal(latest_eval_result)
+
+    # Check whether or not it's time to save another checkpoint
+    if FLAGS.cp_dir is not None:
+      checkpointer.check_and_save(
+        model_params, 
+        model_state,
+        current_step=global_step,
+        current_eval=len(eval_results),
+        current_batch_size=batch_size,
+        run_idx=run_idx,
+        final=(training_complete or goal_reached)
+        )
+
   metrics = {'eval_results': eval_results, 'global_step': global_step}
   return accumulated_submission_time, metrics
 
@@ -272,6 +316,15 @@ def score_submission_on_workload(workload: spec.Workload,
   data_selection = submission_module.data_selection
   get_batch_size = submission_module.get_batch_size
   batch_size = get_batch_size(workload_name)
+
+  ckpt = None
+  if FLAGS.cp_dir is not None:
+    ckpt = checkpoint.Checkpointer(
+      ckpt_dir=FLAGS.cp_dir,
+      workload=workload,
+      ckpt_step=FLAGS.cp_step,
+      ckpt_freq=FLAGS.cp_freq,
+    )
 
   if tuning_ruleset == 'external':
     # If the submission runner is responsible for hyperparameter tuning, load in
@@ -302,7 +355,7 @@ def score_submission_on_workload(workload: spec.Workload,
       logging.info(f'--- Tuning run {hi + 1}/{num_tuning_trials} ---')
       timing, metrics = train_once(workload, batch_size, data_dir,
                                    init_optimizer_state, update_params,
-                                   data_selection, hyperparameters, rng)
+                                   data_selection, hyperparameters, rng, ckpt, hi)
       all_timings.append(timing)
       all_metrics.append(metrics)
     score = min(all_timings)
