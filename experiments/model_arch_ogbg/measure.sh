@@ -8,8 +8,8 @@
 set -e # exit on error
 
 LOGGING_DIR='./experiments/model_arch_ogbg/logs'
-rm -rf $LOGGING_DIR
-mkdir -p $LOGGING_DIR
+# rm -rf $LOGGING_DIR
+# mkdir -p $LOGGING_DIR
 
 ACTIVATIONS='relu sigmoid hard_tahn gelu'
 LATENT_DIMS='128 200 256 300 512'
@@ -49,20 +49,16 @@ EOF
 activation_count=$( awk -F" " '{print NF-1}' <<<"${ACTIVATIONS}" )
 activation_count=$(echo $(( activation_count + 1 )))
 LATENT_DIMS_count=$( awk -F" " '{print NF-1}' <<<"${LATENT_DIMS}" )
-width_count=$(echo $(( width_count + 1 )))
+LATENT_DIMS_count=$(echo $(( LATENT_DIMS_count + 1 )))
 HIDDEN_DIMS_count=$( awk -F" " '{print NF-1}' <<<"${HIDDEN_DIMS}" )
-depth_count=$(echo $(( depth_count + 1 )))
+HIDDEN_DIMS_count=$(echo $(( HIDDEN_DIMS_count + 1 )))
 NUM_MESSAGE_PASSING_STEPS_count=$( awk -F" " '{print NF-1}' <<<"${NUM_MESSAGE_PASSING_STEPS}" )
-depth_count=$(echo $(( depth_count + 1 )))
+NUM_MESSAGE_PASSING_STEPS_count=$(echo $(( NUM_MESSAGE_PASSING_STEPS_count + 1 )))
 total=$(echo $((activation_count * LATENT_DIMS_count * HIDDEN_DIMS_count * NUM_MESSAGE_PASSING_STEPS_count)))
 iteration=1
 
 
 run_cmd () {
-  echo -e "\n[INFO $(date +"%d-%I:%M%p")] Starting iteration $iteration of $total."
-  iteration=$(echo $(( iteration + 1 )))
-  EXPERIMENT_DIR="$LOGGING_DIR/activation_$ACTIVATION-latent_$LATENT_DIM-hidden_$HIDDEN_DIM-num_message_$NUM_MESSAGE_PASSING_STEP-dropout_$DROPOUT_RATE-batch_$BATCH_SIZE/"
-  mkdir -p $EXPERIMENT_DIR
   set -x
   python3 submission_runner.py --framework=jax --workload=configurable_ogb_jax --submission_path=baselines/configurable_ogbg/ogbg_jax/submission.py \
     --tuning_search_space="$HYPERPARAM_CONFIG" \
@@ -94,6 +90,14 @@ do
         do
           for BATCH_SIZE in $BATCH_SIZES
           do
+            echo -e "\n[INFO $(date +"%d-%I:%M%p")] Starting iteration $iteration of $total."
+            iteration=$(echo $(( iteration + 1 )))
+            EXPERIMENT_DIR="$LOGGING_DIR/activation_$ACTIVATION-latent_$LATENT_DIM-hidden_$HIDDEN_DIM-num_message_$NUM_MESSAGE_PASSING_STEP-dropout_$DROPOUT_RATE-batch_$BATCH_SIZE/"
+            if [ "$iteration" -lt "73" ]; then
+              echo 'Skipping...'
+              continue
+            fi
+            mkdir -p $EXPERIMENT_DIR
             run_cmd
           done
         done
