@@ -25,6 +25,8 @@ from absl import logging
 from algorithmic_efficiency import early_stopping
 from algorithmic_efficiency import halton
 from algorithmic_efficiency import logging_utils
+from algorithmic_efficiency import random_utils as prng
+from algorithmic_efficiency import checkpoint
 from algorithmic_efficiency import spec
 import algorithmic_efficiency.random_utils as prng
 
@@ -118,7 +120,10 @@ flags.DEFINE_string(
 flags.DEFINE_string(
     'early_stopping_config', None,
     'Stop training when a monitored metric has stopped improving.')
-flags.DEFINE_string('data_dir', '~/', 'Dataset location')
+flags.DEFINE_boolean(
+    'save_checkpoints', False, help='Saves a checkpoint at the end of each '
+    'eval. Note: Requires --logging_dir set to take effect.')
+flags.DEFINE_string('data_dir', '~/tensorflow_datasets/', 'Dataset location')
 flags.DEFINE_enum(
     'framework',
     None,
@@ -211,6 +216,15 @@ def train_once(workload: spec.Workload, batch_size: int, data_dir: str,
 
   global_start_time = time.time()
 
+  if FLAGS.save_checkpoints:
+    checkpoint.save_checkpoint(
+      model_params,
+      model_state,
+      workload,
+      FLAGS.logging_dir,
+      0, # save checkpoint at initialization (ie. 0th step)
+      trial_idx)
+
   logging.info('Starting training loop.')
   while (is_time_remaining and not goal_reached and not training_complete and
          not early_stop):
@@ -260,6 +274,14 @@ def train_once(workload: spec.Workload, batch_size: int, data_dir: str,
                        batch_size, latest_eval_result, global_start_time,
                        accumulated_submission_time, goal_reached,
                        is_time_remaining, training_complete)
+      if FLAGS.save_checkpoints:
+        checkpoint.save_checkpoint(
+          model_params,
+          model_state,
+          workload,
+          FLAGS.logging_dir,
+          global_step,
+          trial_idx)
     global_step += 1
   metrics = {'eval_results': eval_results, 'global_step': global_step}
   record.trial_complete(workload, hyperparameters, trial_idx, global_step,
