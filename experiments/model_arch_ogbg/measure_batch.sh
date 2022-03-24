@@ -140,3 +140,18 @@ do
 
     echo -e "$FILE \n  $STATUS mean_average_precision=$mean_average_precision global_step=$global_step goal_reached=$goal_reached is_time_remaining=$is_time_remaining early_stop=$early_stop training_complete=$training_complete \n"
 done
+
+
+# rebuild best parameters csv
+echo "architecture,batch_size,step_to_threshold" > gnn_out.csv
+for FILE in ./experiments/model_arch_ogbg/logs*/**/trial_**/*.json
+do
+    JSON=$(cat $FILE)
+    # architecture=$(echo $JSON | jq -r .'"extra.batch_science.architecture"')
+    batch_size=$(echo $JSON | jq -r .'"batch_size"')
+    step_to_threshold=$(echo $JSON | jq -r .'"global_step"')
+    echo "normal,$batch_size,$step_to_threshold" | tee -a gnn_out.csv
+done
+
+
+python3 experiments/mnist_batch_size/plot_batch.py gnn_out.csv plot_gnn_batch.png

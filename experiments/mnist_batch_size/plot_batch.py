@@ -3,15 +3,18 @@ This script will plot training loss vs training step using for a recorded CSV.
 
 Author: Daniel Snider <danielsnider12@gmail.com>
 
-Usage: python3 experiments/mnist_batch_size/plot_batch.py
+Usage: python3 experiments/mnist_batch_size/plot_batch.py in.csv out.png
 """
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
+import sys
 
 # Read Data
 input_file = '/home/dans/algorithmic-efficiency/best_parameters_full.csv'
 input_file = './out.csv'
+input_file = sys.argv[1] if len(sys.argv) > 1 else input_file
+output_file = sys.argv[2] if len(sys.argv) > 2 else 'plot.png'
 df = pd.read_csv(input_file)
 
 
@@ -33,4 +36,4 @@ plt.yscale('log', base=2)
 
 
 # Save
-fig.savefig('plot_batch_test.png', transparent=False, dpi=160, bbox_inches="tight")
+fig.savefig(output_file, transparent=False, dpi=160, bbox_inches="tight")
