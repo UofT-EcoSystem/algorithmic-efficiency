@@ -17,22 +17,29 @@ input_file = sys.argv[1] if len(sys.argv) > 1 else input_file
 output_file = sys.argv[2] if len(sys.argv) > 2 else 'plot.png'
 df = pd.read_csv(input_file)
 
+df_orig = df
 
-for arch in df['architecture'].unique():
-    loc = df['architecture'] == arch
-    num_steps_at_min_batch = df[loc].step_to_threshold.iloc[0]
-    df.loc[loc, 'step_to_threshold'] = df.loc[loc, 'step_to_threshold'] / num_steps_at_min_batch
+for arch in df_orig['architecture'].unique():
+    arch_loc = df_orig['architecture'] == arch
+    min_batch =  df_orig[arch_loc].batch_size.min()
+    min_batch_loc = (df_orig['architecture'] == arch) & (df_orig['batch_size'] == min_batch)
+    num_steps_at_min_batch = df_orig[min_batch_loc].step_to_threshold.iloc[0]
+    df.loc[arch_loc, 'step_to_threshold'] = df_orig.loc[arch_loc, 'step_to_threshold'] / num_steps_at_min_batch
+    print('min_batch')
+    print(min_batch)
+
 
 # Plot
 sns.set_theme()
 fig, ax = plt.subplots()
-sns.lineplot(data=df, ax=ax, x='batch_size', y='step_to_threshold', hue='architecture')
+g = sns.lineplot(data=df, ax=ax, x='batch_size', y='step_to_threshold', hue='architecture')
 
 # Style
-ax.set_ylabel('Steps / (# Steps at B=4)')
+ax.set_ylabel(f'Steps / (# Steps at B={min_batch})')
 ax.set_xlabel('Batch Size')
 plt.xscale('log', base=2)
 plt.yscale('log', base=2)
+g.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
 
 # Save

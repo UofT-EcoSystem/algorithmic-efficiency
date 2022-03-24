@@ -19,7 +19,7 @@ DROPOUT_RATES='0'
 BATCH_SIZES='1024'
 OPTIMIZER='adam'
 
-EVAL_FREQUENCY_OVERRIDE='20 step'
+EVAL_FREQUENCY_OVERRIDE='1 step'
 TARGET_VALUE='0.873'
 NUM_TRIALS='3'
 
@@ -32,15 +32,15 @@ cat <<EOF > adam_mnist_tuning_search_space.json
 }
 EOF
 
-MAX_ALLOWED_RUNTIME_SEC='9000'
+MAX_ALLOWED_RUNTIME_SEC='900000'
 EARLY_STOPPING_CONFIG='mnist_early_stopping_config.json'
 cat <<EOF > mnist_early_stopping_config.json
 {
   "metric_name": "loss",
   "min_delta": 0,
-  "patience": 5,
+  "patience": 99,
   "min_steps": 58,
-  "max_steps": 9000,
+  "max_steps": 90000,
   "mode": "min",
   "baseline": null
 }

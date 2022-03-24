@@ -16,12 +16,12 @@ LATENT_DIMS='128 256'
 HIDDEN_DIMS='128 256'
 NUM_MESSAGE_PASSING_STEPS='3 5'
 DROPOUT_RATES='0.1'
-BATCH_SIZES='256 512 1024 2048 4096 8192'
+BATCH_SIZES='128 256 512 1024 2048 4096 8192'
 OPTIMIZER='adam'
 
 EVAL_FREQUENCY_OVERRIDE='100 step'
 TARGET_VALUE='0.09'
-NUM_TRIALS='1'
+NUM_TRIALS='3'
 
 HYPERPARAM_CONFIG='adam_ogbg_tuning_search_space.json'
 cat <<EOF > adam_ogbg_tuning_search_space.json
@@ -150,7 +150,11 @@ do
     # architecture=$(echo $JSON | jq -r .'"extra.batch_science.architecture"')
     batch_size=$(echo $JSON | jq -r .'"batch_size"')
     step_to_threshold=$(echo $JSON | jq -r .'"global_step"')
-    echo "normal,$batch_size,$step_to_threshold" | tee -a gnn_out.csv
+    latent_dim=$(echo $JSON | jq -r .'"extra.ogbg_config.latent_dim"')
+    hidden_dims=$(echo $JSON | jq -r .'"extra.ogbg_config.hidden_dims"')
+    num_message_passing_steps=$(echo $JSON | jq -r .'"extra.ogbg_config.num_message_passing_steps"')
+    ARCH="latent$latent_dim-hidden$hidden_dims-pass$num_message_passing_steps"
+    echo "$ARCH,$batch_size,$step_to_threshold" | tee -a gnn_out.csv
 done
 
 
