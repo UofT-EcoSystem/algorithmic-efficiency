@@ -107,6 +107,11 @@ flags.DEFINE_string(
 flags.DEFINE_integer('num_tuning_trials',
                      20,
                      'The number of external hyperparameter trials to run.')
+flags.DEFINE_float('target_value', None, 'The target value to reach.')
+flags.DEFINE_string('architecture', None, '')
+flags.DEFINE_integer('batch_size', None, '')
+flags.DEFINE_string('activation', None, '')
+flags.DEFINE_float('learning_rate', None, '')
 flags.DEFINE_string(
     'logging_dir', None,
     'The path to save information about the training progress of a workload to '
@@ -298,10 +303,7 @@ def train_once(workload: spec.Workload,
       record.save_eval(workload, hyperparameters, trial_idx, global_step,
                        batch_size, latest_eval_result, global_start_time,
                        accumulated_submission_time, goal_reached,
-<<<<<<< HEAD:submission_runner.py
                        is_time_remaining, training_complete, early_stop)
-=======
-                       is_time_remaining, training_complete)
       if FLAGS.save_checkpoints:
         checkpoint.save_checkpoint(
           model_params,
@@ -310,7 +312,6 @@ def train_once(workload: spec.Workload,
           FLAGS.logging_dir,
           global_step,
           trial_idx)
->>>>>>> model_arch:algorithmic_efficiency/submission_runner.py
     global_step += 1
   metrics = {'eval_results': eval_results, 'global_step': global_step}
   record.trial_complete(workload, hyperparameters, trial_idx, global_step,

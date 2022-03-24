@@ -121,3 +121,4 @@ do
 done
 
 python3 experiments/mnist_batch_size/plot_batch.py
+
