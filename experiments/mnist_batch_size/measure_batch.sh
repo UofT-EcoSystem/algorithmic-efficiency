@@ -45,31 +45,31 @@ do
 EOF
         set -x
         mkdir -p $LOG_DIR_SUB_EXPERIMENT
-    python3 algorithmic_efficiency/submission_runner.py \
-        --framework=jax \
-        --workload=mnist_jax \
-        --submission_path=baselines/mnist/mnist_jax/submission.py \
-        --tuning_search_space=baselines/mnist/tuning_search_space.json \
-        --num_tuning_trials=$NUM_TRIALS \
-        --logging_dir=$LOG_DIR_SUB_EXPERIMENT \
-        --eval_frequency_override="$EVAL_FREQUENCY_OVERRIDE step" \
-        --early_stopping_config="$EARLY_STOPPING_CONFIG" \
-        --extra_metadata="batch_science.architecture=$architecture" \
-        --extra_metadata="batch_science.batch_size=$batch_size" \
-        --extra_metadata="batch_science.trial_id=$trial_id" \
-        --extra_metadata="batch_science.step_to_threshold=$step_to_threshold" \
-        --extra_metadata="batch_science.learning_rate=$learning_rate" \
-        --extra_metadata="batch_science.train_cross_entropy_error=$train_cross_entropy_error" \
-        --extra_metadata="batch_science.train_classification_error=$train_classification_error" \
-        --extra_metadata="batch_science.val_cross_entropy_error=$val_cross_entropy_error" \
-        --extra_metadata="batch_science.val_classification_error=$val_classification_error" \
-        --extra_metadata="batch_science.best_config_path=$best_config_path" \
-        --architecture=$architecture \
-        --learning_rate=$learning_rate \
-        --activation=$ACTIVATION \
-        --batch_size=$batch_size \
-        --target_value=$TARGET_VALUE
-        set +x
+        python3 submission_runner.py \
+            --framework=jax \
+            --workload=mnist_jax \
+            --submission_path=baselines/mnist/mnist_jax/submission.py \
+            --tuning_search_space=baselines/mnist/tuning_search_space.json \
+            --num_tuning_trials=$NUM_TRIALS \
+            --logging_dir=$LOG_DIR_SUB_EXPERIMENT \
+            --eval_frequency_override="$EVAL_FREQUENCY_OVERRIDE step" \
+            --early_stopping_config="$EARLY_STOPPING_CONFIG" \
+            --extra_metadata="batch_science.architecture=$architecture" \
+            --extra_metadata="batch_science.batch_size=$batch_size" \
+            --extra_metadata="batch_science.trial_id=$trial_id" \
+            --extra_metadata="batch_science.step_to_threshold=$step_to_threshold" \
+            --extra_metadata="batch_science.learning_rate=$learning_rate" \
+            --extra_metadata="batch_science.train_cross_entropy_error=$train_cross_entropy_error" \
+            --extra_metadata="batch_science.train_classification_error=$train_classification_error" \
+            --extra_metadata="batch_science.val_cross_entropy_error=$val_cross_entropy_error" \
+            --extra_metadata="batch_science.val_classification_error=$val_classification_error" \
+            --extra_metadata="batch_science.best_config_path=$best_config_path" \
+            --architecture=$architecture \
+            --learning_rate=$learning_rate \
+            --activation=$ACTIVATION \
+            --batch_size=$batch_size \
+            --target_value=$TARGET_VALUE
+            set +x
     done < ./best_parameters.csv
 
 done

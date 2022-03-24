@@ -19,7 +19,7 @@ NUM_TRIALS='1'
 
 echo -e "\n[INFO $(date +"%d-%I:%M%p")] Starting."
 set -x
-python3 algorithmic_efficiency/submission_runner.py \
+python3 submission_runner.py \
     --framework=jax \
     --workload=mnist_jax \
     --submission_path=baselines/mnist/mnist_jax/submission.py \

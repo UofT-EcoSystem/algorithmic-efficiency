@@ -3,7 +3,7 @@
 # Author: Daniel Snider <danielsnider12@gmail.com>
 #
 # Usage:
-# bash ./experiments/model_arch_mnist/measure_example.sh 2>&1 | tee -a ./experiments/model_arch_mnist/logs/console_output.log
+# bash ./experiments/model_arch_mnist/measure_configurable_batch.sh 2>&1 | tee -a ./experiments/model_arch_mnist/logs/console_output.log
 
 set -e # exit on error
 
@@ -63,7 +63,7 @@ run_cmd () {
   EXPERIMENT_DIR="$LOGGING_DIR/activation_$ACTIVATION-width_$MODEL_WIDTH-depth_$MODEL_DEPTH-dropout_$DROPOUT_RATE-batch_$BATCH_SIZE/"
   mkdir -p $EXPERIMENT_DIR
   set -x
-  python3 algorithmic_efficiency/submission_runner.py \
+  python3 submission_runner.py \
     --framework=jax \
     --workload=configurable_mnist_jax \
     --submission_path=baselines/mnist/configurable_mnist_jax/submission.py \

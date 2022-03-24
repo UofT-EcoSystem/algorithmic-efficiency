@@ -28,7 +28,7 @@ $ mkdir -p $LOGGING_DIR
 
 Run a workload with the `--logging_dir` option to produce a `measurements.csv` file. Here we run the simplest workload, an MLP JAX model with the MNIST dataset, for only 2 training trials with hyperparameters randomly picked from the acceptable range specified in `tuning_search_space.json`.
 ```bash
-$ python3 algorithmic_efficiency/submission_runner.py \
+$ python3 submission_runner.py \
     --framework=jax \
     --workload=mnist_jax \
     --submission_path=baselines/mnist/mnist_jax/submission.py \
