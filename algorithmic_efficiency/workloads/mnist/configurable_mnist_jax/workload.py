@@ -41,6 +41,7 @@ class MnistWorkload(spec.Workload):
     self.batch_size = int(
         extra_metadata.get('extra.mnist_config.batch_size', None))
     self.optimizer = extra_metadata.get('extra.mnist_config.optimizer', None)
+    self.batch_norm = extra_metadata.get('extra.mnist_config.batch_norm', 'off')
 
     class _Model(nn.Module):
 
@@ -50,8 +51,17 @@ class MnistWorkload(spec.Workload):
         num_classes = 10
         x = x.reshape((x.shape[0], input_size))  # Flatten.
         for _ in range(model_depth - 1):
-          x = nn.Dense(features=model_width, use_bias=True)(x)
-          x = activation_fn(x)
+          if self.batch_norm == 'off':
+            x = nn.Dense(features=model_width, use_bias=True)(x)
+            x = activation_fn(x)
+          elif self.batch_norm == 'affine-activation-batchnorm':
+            x = nn.Dense(features=model_width, use_bias=True)(x)
+            x = activation_fn(x)
+            x = nn.BatchNorm(use_running_average=not train, momentum=0.99)(x)
+          elif self.batch_norm == 'affine-batchnorm-activation':
+            x = nn.Dense(features=model_width, use_bias=True)(x)
+            x = nn.BatchNorm(use_running_average=not train, momentum=0.99)(x)
+            x = activation_fn(x)
         x = nn.Dense(features=num_classes, use_bias=True)(x)
         x = nn.log_softmax(x)
         return x
