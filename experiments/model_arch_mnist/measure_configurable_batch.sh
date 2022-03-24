@@ -72,6 +72,7 @@ run_cmd () {
     --logging_dir="$EXPERIMENT_DIR" \
     --eval_frequency_override="$EVAL_FREQUENCY_OVERRIDE" \
     --early_stopping_config="$EARLY_STOPPING_CONFIG" \
+    --save_checkpoints \
     --extra_metadata="mnist_config.target_value=$TARGET_VALUE" \
     --extra_metadata="mnist_config.max_allowed_runtime_sec=$MAX_ALLOWED_RUNTIME_SEC" \
     --extra_metadata="mnist_config.activation_fn=$ACTIVATION" \
