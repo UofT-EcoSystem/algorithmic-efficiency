@@ -39,8 +39,10 @@ def save_checkpoint(
   if not output_dir:
     return
 
+  workload_name = str(workload.__class__).split('.')[3] # TODO(Dan): Can submission_runner.py just set workload.name? Are submissions not supposed to know the workload name? But they can always do what we do here.
+
   # Create output folder
-  save_path = os.path.join(output_dir, f'trial_{trial_idx}')
+  save_path = os.path.join(output_dir, workload_name, f'trial_{trial_idx}', 'checkpoints')
   os.makedirs(save_path, exist_ok=True)
 
   # Save model
@@ -49,7 +51,10 @@ def save_checkpoint(
   if model and not os.path.isfile(model_path):
     # model doesn't change so only write once
     with open(model_path, 'wb') as f:
-      dill.dump(workload._model, f)
+      try:
+        dill.dump(model, f)
+      except:
+        logging.warning('Model not saved to pickle. Continuing.')
 
   # Safely transform params
   param_dict = None
