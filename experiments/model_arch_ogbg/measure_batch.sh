@@ -3,7 +3,7 @@
 # Author: Daniel Snider <danielsnider12@gmail.com>
 #
 # Usage:
-# kill %; bash ./experiments/model_arch_ogbg/measure.sh 2>&1 | tee -a ./experiments/model_arch_ogbg/logs/console_output.log
+# kill %; bash ./experiments/model_arch_ogbg/measure_batch.sh 2>&1 | tee -a ./experiments/model_arch_ogbg/logs/console_output.log
 
 set -e # exit on error
 
@@ -20,7 +20,7 @@ BATCH_SIZES='128 256 512 1024 2048 4096 8192'
 OPTIMIZER='adam'
 
 EVAL_FREQUENCY_OVERRIDE='100 step'
-TARGET_VALUE='0.09'
+TARGET_VALUE='0.1'
 NUM_TRIALS='3'
 
 HYPERPARAM_CONFIG='adam_ogbg_tuning_search_space.json'

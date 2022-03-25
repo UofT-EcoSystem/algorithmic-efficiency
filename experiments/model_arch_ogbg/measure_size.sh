@@ -11,7 +11,8 @@ LOGGING_DIR='./experiments/model_arch_ogbg/logs'
 # rm -rf $LOGGING_DIR
 # mkdir -p $LOGGING_DIR
 
-ACTIVATIONS='relu sigmoid hard_tahn gelu'
+# ACTIVATIONS='relu sigmoid hard_tanh gelu'
+ACTIVATIONS='hard_tanh gelu'
 LATENT_DIMS='128 200 256 300 512'
 HIDDEN_DIMS='128 200 256 300 512'
 NUM_MESSAGE_PASSING_STEPS='4 5 6'
@@ -93,10 +94,10 @@ do
             echo -e "\n[INFO $(date +"%d-%I:%M%p")] Starting iteration $iteration of $total."
             iteration=$(echo $(( iteration + 1 )))
             EXPERIMENT_DIR="$LOGGING_DIR/activation_$ACTIVATION-latent_$LATENT_DIM-hidden_$HIDDEN_DIM-num_message_$NUM_MESSAGE_PASSING_STEP-dropout_$DROPOUT_RATE-batch_$BATCH_SIZE/"
-            if [ "$iteration" -lt "73" ]; then
-              echo 'Skipping...'
-              continue
-            fi
+            # if [ "$iteration" -lt "73" ]; then
+            #   echo 'Skipping...'
+            #   continue
+            # fi
             mkdir -p $EXPERIMENT_DIR
             run_cmd
           done
