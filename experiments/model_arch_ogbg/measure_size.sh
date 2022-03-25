@@ -3,10 +3,11 @@
 # Author: Daniel Snider <danielsnider12@gmail.com>
 #
 # Usage:
-# kill %; bash ./experiments/model_arch_ogbg/measure.sh 2>&1 | tee -a ./experiments/model_arch_ogbg/logs/console_output.log
+# kill %; bash ./experiments/model_arch_ogbg/measure_size.sh 2>&1 | tee -a ./experiments/model_arch_ogbg/logs/console_output.log
 
 set -e # exit on error
 
+# ECO-11
 LOGGING_DIR='./experiments/model_arch_ogbg/logs'
 # rm -rf $LOGGING_DIR
 # mkdir -p $LOGGING_DIR

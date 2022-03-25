@@ -7,6 +7,7 @@
 
 set -e # exit on error
 
+# ECO-12
 LOGGING_DIR='./experiments/model_arch_ogbg/logs'
 # rm -rf $LOGGING_DIR
 mkdir -p $LOGGING_DIR
