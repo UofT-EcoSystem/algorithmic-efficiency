@@ -12,8 +12,7 @@ LOGGING_DIR='./experiments/model_arch_ogbg/logs'
 # rm -rf $LOGGING_DIR
 # mkdir -p $LOGGING_DIR
 
-# ACTIVATIONS='relu sigmoid hard_tanh gelu'
-ACTIVATIONS='hard_tanh gelu'
+ACTIVATIONS='relu sigmoid hard_tanh gelu'
 LATENT_DIMS='128 200 256 300 512'
 HIDDEN_DIMS='128 200 256 300 512'
 NUM_MESSAGE_PASSING_STEPS='4 5 6'
