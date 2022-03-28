@@ -8,7 +8,7 @@ import jax.numpy as jnp
 import tensorflow as tf
 import numpy as np
 import tensorflow_datasets as tfds
-from workloads.mnist.workload import Mnist
+from algorithmic_efficiency.workloads.mnist.workload import Mnist
 
 from algorithmic_efficiency import spec
 

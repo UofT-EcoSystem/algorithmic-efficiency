@@ -16,7 +16,7 @@ do
     mkdir -p $LOG_DIR/
 
     # Full data collection
-    NUM_TRIALS='7'
+    NUM_TRIALS='20'
     TARGET_VALUE='0.7'
 
     # Quick data collection
@@ -58,17 +58,17 @@ EOF
             --extra_metadata="batch_science.batch_size=$batch_size" \
             --extra_metadata="batch_science.trial_id=$trial_id" \
             --extra_metadata="batch_science.step_to_threshold=$step_to_threshold" \
-            --extra_metadata="batch_science.learning_rate=$learning_rate" \
             --extra_metadata="batch_science.train_cross_entropy_error=$train_cross_entropy_error" \
             --extra_metadata="batch_science.train_classification_error=$train_classification_error" \
             --extra_metadata="batch_science.val_cross_entropy_error=$val_cross_entropy_error" \
             --extra_metadata="batch_science.val_classification_error=$val_classification_error" \
             --extra_metadata="batch_science.best_config_path=$best_config_path" \
             --architecture=$architecture \
-            --learning_rate=$learning_rate \
             --activation=$ACTIVATION \
             --batch_size=$batch_size \
             --target_value=$TARGET_VALUE
+            # --extra_metadata="batch_science.learning_rate=$learning_rate" \
+            # --learning_rate=$learning_rate \
             set +x
     done < ./best_parameters.csv
 
@@ -110,7 +110,8 @@ do
     batch_size=$(echo $JSON | jq -r .'"batch_size"')
     trial_id=$(echo $JSON | jq -r .'"extra.batch_science.trial_id"')
     step_to_threshold=$(echo $JSON | jq -r .'"global_step"')
-    learning_rate=$(echo $JSON | jq -r .'"extra.batch_science.learning_rate"')
+    # learning_rate=$(echo $JSON | jq -r .'"extra.batch_science.learning_rate"')
+    learning_rate=$(echo $JSON | jq -r .'"learning_rate"')
     train_cross_entropy_error=$(echo $JSON | jq -r .'"extra.batch_science.train_cross_entropy_error"')
     train_classification_error=$(echo $JSON | jq -r .'"extra.batch_science.train_classification_error"')
     val_cross_entropy_error=$(echo $JSON | jq -r .'"extra.batch_science.val_cross_entropy_error"')
