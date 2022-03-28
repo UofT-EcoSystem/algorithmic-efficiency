@@ -139,3 +139,6 @@ do
 
     echo -e "$FILE \n  $STATUS mean_average_precision=$mean_average_precision global_step=$global_step goal_reached=$goal_reached is_time_remaining=$is_time_remaining early_stop=$early_stop training_complete=$training_complete \n"
 done
+
+# build 1 large JSON file
+jq -s 'flatten' ./experiments/model_arch_ogbg/logs*/**/trial_**/*.json > gnn_size_merged.json
