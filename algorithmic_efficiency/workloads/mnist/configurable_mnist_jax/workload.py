@@ -14,7 +14,51 @@ from algorithmic_efficiency import spec
 from algorithmic_efficiency.logging_utils import _get_extra_metadata_as_dict
 
 FLAGS = flags.FLAGS
+class _Model(nn.Module):
+  def setup(self):
+    extra_metadata = _get_extra_metadata_as_dict(FLAGS.extra_metadata)
+    self._target_value = float(
+        extra_metadata.get('extra.mnist_config.target_value', None))
+    self._max_allowed_runtime_sec = int(
+        extra_metadata.get('extra.mnist_config.max_allowed_runtime_sec', None))
+    activitation_fn_map = {
+        'relu': jax.nn.relu,
+        'sigmoid': jax.nn.sigmoid,
+        'hard_tanh': jax.nn.hard_tanh,
+        'gelu': jax.nn.gelu
+    }
+    self.activation_fn = activitation_fn_map[extra_metadata.get(
+        'extra.mnist_config.activation_fn', 'relu')]
+    self.model_width = int(extra_metadata.get('extra.mnist_config.model_width', 128))
+    self.model_depth = int(extra_metadata.get('extra.mnist_config.model_depth', 1))
+    self.dropout_rate = float(
+        extra_metadata.get('extra.mnist_config.dropout_rate', 0))
+    self.batch_size = int(
+        extra_metadata.get('extra.mnist_config.batch_size', None))
+    self.optimizer = extra_metadata.get('extra.mnist_config.optimizer', None)
+    self.batch_norm = extra_metadata.get('extra.mnist_config.batch_norm', 'off')
 
+  @nn.compact
+  def __call__(self, x: spec.Tensor, train: bool):
+
+    input_size = 28 * 28
+    num_classes = 10
+    x = x.reshape((x.shape[0], input_size))  # Flatten.
+    for _ in range(self.model_depth - 1):
+      if self.batch_norm == 'off':
+        x = nn.Dense(features=self.model_width, use_bias=True)(x)
+        x = self.activation_fn(x)
+      elif self.batch_norm == 'affine-activation-batchnorm':
+        x = nn.Dense(features=self.model_width, use_bias=True)(x)
+        x = self.activation_fn(x)
+        x = nn.BatchNorm(use_running_average=not train, momentum=0.99)(x)
+      elif self.batch_norm == 'affine-batchnorm-activation':
+        x = nn.Dense(features=self.model_width, use_bias=True)(x)
+        x = nn.BatchNorm(use_running_average=not train, momentum=0.99)(x)
+        x = self.activation_fn(x)
+    x = nn.Dense(features=num_classes, use_bias=True)(x)
+    x = nn.log_softmax(x)
+    return x
 
 class MnistWorkload(spec.Workload):
 
@@ -42,29 +86,6 @@ class MnistWorkload(spec.Workload):
         extra_metadata.get('extra.mnist_config.batch_size', None))
     self.optimizer = extra_metadata.get('extra.mnist_config.optimizer', None)
     self.batch_norm = extra_metadata.get('extra.mnist_config.batch_norm', 'off')
-
-    class _Model(nn.Module):
-
-      @nn.compact
-      def __call__(self, x: spec.Tensor, train: bool):
-        input_size = 28 * 28
-        num_classes = 10
-        x = x.reshape((x.shape[0], input_size))  # Flatten.
-        for _ in range(model_depth - 1):
-          if self.batch_norm == 'off':
-            x = nn.Dense(features=model_width, use_bias=True)(x)
-            x = activation_fn(x)
-          elif self.batch_norm == 'affine-activation-batchnorm':
-            x = nn.Dense(features=model_width, use_bias=True)(x)
-            x = activation_fn(x)
-            x = nn.BatchNorm(use_running_average=not train, momentum=0.99)(x)
-          elif self.batch_norm == 'affine-batchnorm-activation':
-            x = nn.Dense(features=model_width, use_bias=True)(x)
-            x = nn.BatchNorm(use_running_average=not train, momentum=0.99)(x)
-            x = activation_fn(x)
-        x = nn.Dense(features=num_classes, use_bias=True)(x)
-        x = nn.log_softmax(x)
-        return x
 
     self._model = _Model()
 

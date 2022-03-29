@@ -19,15 +19,33 @@ df = pd.read_csv(input_file)
 
 df_orig = df
 
+df_best_of_trials = pd.DataFrame()
+
+multi_trial = False
+
 for arch in df_orig['architecture'].unique():
     arch_loc = df_orig['architecture'] == arch
     min_batch =  df_orig[arch_loc].batch_size.min()
     min_batch_loc = (df_orig['architecture'] == arch) & (df_orig['batch_size'] == min_batch)
-    num_steps_at_min_batch = df_orig[min_batch_loc].step_to_threshold.iloc[0]
-    df.loc[arch_loc, 'step_to_threshold'] = df_orig.loc[arch_loc, 'step_to_threshold'] / num_steps_at_min_batch
+    df_orig[min_batch_loc].step_to_threshold
+    if multi_trial:
+        num_steps_at_min_batch = df_orig[min_batch_loc].step_to_threshold.min()
+        for bs in df_orig.loc[arch_loc, 'batch_size'].unique():
+            loc = (df_orig['architecture'] == arch) & (df_orig['batch_size'] == bs)
+            best_loc = df_orig.loc[loc, 'step_to_threshold'].idxmin()
+            data = df_orig.iloc[best_loc]
+            data['step_to_threshold'] = data['step_to_threshold'] / num_steps_at_min_batch
+            df_best_of_trials = df_best_of_trials.append(data)
+    else:
+        num_steps_at_min_batch = df_orig[min_batch_loc].step_to_threshold.iloc[0]
+        df.loc[arch_loc, 'step_to_threshold'] = df_orig.loc[arch_loc, 'step_to_threshold'] / num_steps_at_min_batch
     print('min_batch')
     print(min_batch)
 
+# from IPython import embed
+# embed() # drop into an IPython session
+if multi_trial:
+    df = df_best_of_trials
 
 # Plot
 sns.set_theme()

@@ -3,7 +3,7 @@
 # Author: Daniel Snider <danielsnider12@gmail.com>
 #
 # Usage:
-# bash ./experiments/model_arch_mnist/measure_batchnorm_checkpoints.sh 2>&1 | tee -a ./experiments/model_arch_mnist/logs/console_output.log
+# bash ./experiments/model_arch_mnist/measure_batchnorm_checkpoints.sh 2>&1 | tee -a ./experiments/batchnorm_checkpoints/logs/console_output.log
 
 set -e # exit on error
 
