@@ -154,13 +154,6 @@ flags.DEFINE_integer(
   \n3 - Displays only the final workload score, as well as WARNING, ERROR\
   and FATAL level logs.'
 )
-flags.DEFINE_string(
-  'logging_dir',
-  None,
-  help='Saves logs to the specified file path. By default logs are not saved'
-)
-
-FLAGS = flags.FLAGS
 
 flags.DEFINE_enum(
   'cp_step',
@@ -237,7 +230,6 @@ def train_once(workload: spec.Workload,
                hyperparameters: Optional[spec.Hyperparamters],
                rng: spec.RandomState,
                checkpointer: Optional[checkpoint.Checkpointer],
-               run_idx: int,
                record: Callable,
                trial_idx: int) -> Tuple[spec.Timing, spec.Steps]:
 
@@ -291,6 +283,7 @@ def train_once(workload: spec.Workload,
                                                  hyperparameters,
                                                  global_step,
                                                  data_select_rng)
+
     try:
       optimizer_state, model_params, model_state = update_params(
           workload=workload,
@@ -310,6 +303,7 @@ def train_once(workload: spec.Workload,
       training_complete = True
     current_time = time.time()
     accumulated_submission_time += current_time - start_time
+
     is_time_remaining = (
         accumulated_submission_time < workload.max_allowed_runtime_sec)
 
@@ -322,8 +316,12 @@ def train_once(workload: spec.Workload,
     if (is_eligible_for_untimed_eval or eval_requested or training_complete):
       latest_eval_result = workload.eval_model(model_params, model_state,
                                                eval_rng, data_dir)
+
+      if FLAGS.console_verbosity == 1:
+        logging.set_verbosity(logging.INFO)
       logging.info(f'{current_time - global_start_time:.2f}s\t{global_step}'
                    f'\t{latest_eval_result}')
+
       if is_eligible_for_untimed_eval:
         last_eval_time = current_time
       eval_results.append((global_step, latest_eval_result))
@@ -334,6 +332,18 @@ def train_once(workload: spec.Workload,
                        accumulated_submission_time, goal_reached,
                        is_time_remaining, training_complete)
     global_step += 1
+
+    # Check whether or not it's time to save another checkpoint
+    if FLAGS.cp_dir is not None:
+      checkpointer.check_and_save(
+        model_params, 
+        model_state,
+        current_step=global_step,
+        current_eval=len(eval_results),
+        current_batch_size=batch_size,
+        run_idx=trial_idx,
+        final=(training_complete or goal_reached)
+        )
 
   metrics = {'eval_results': eval_results, 'global_step': global_step}
   record.trial_complete(workload, hyperparameters, trial_idx, global_step,
@@ -407,8 +417,8 @@ def score_submission_on_workload(workload: spec.Workload,
       logging.info(f'--- Tuning run {trial_idx + 1}/{num_tuning_trials} ---')
       timing, metrics = train_once(workload, batch_size, data_dir,
                                    init_optimizer_state, update_params,
-                                   data_selection, hyperparameters, rng, record,
-                                   trial_idx + 1)
+                                   data_selection, hyperparameters, rng,
+                                   ckpt, record, trial_idx + 1)
       all_timings.append(timing)
       all_metrics.append(metrics)
     score = min(all_timings)
