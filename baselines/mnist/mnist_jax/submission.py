@@ -1,7 +1,7 @@
 """Training algorithm track submission functions for MNIST."""
 
 import functools
-from typing import Iterator, List, Tuple
+from typing import Iterator, List, Tuple, Optional
 
 from flax import jax_utils
 import jax
@@ -12,6 +12,7 @@ from algorithmic_efficiency import spec
 
 
 def get_batch_size(workload_name):
+  # Return the global batch size.
   batch_sizes = {'mnist_jax': 1024}
   return batch_sizes[workload_name]
 
@@ -51,7 +52,8 @@ def pmapped_update_params(workload: spec.Workload,
                           current_param_container: spec.ParameterContainer,
                           model_state: spec.ModelAuxiliaryState,
                           hyperparameters: spec.Hyperparamters,
-                          input_batch: spec.Tensor, label_batch: spec.Tensor,
+                          input_batch: spec.Tensor,
+                          label_batch: spec.Tensor,
                           optimizer_state: spec.OptimizerState,
                           rng: spec.RandomState,
                           local_device_index) -> spec.UpdateReturn:
@@ -87,6 +89,7 @@ def update_params(
     hyperparameters: spec.Hyperparamters,
     input_batch: spec.Tensor,
     label_batch: spec.Tensor,
+    mask_batch: Optional[spec.Tensor],
     # This will define the output activation via `output_activation_fn`.
     loss_type: spec.LossType,
     optimizer_state: spec.OptimizerState,
@@ -104,9 +107,10 @@ def update_params(
   reshaped_input_batch = jnp.reshape(
       input_batch,
       (num_devices, input_shape[0] // num_devices, *input_shape[1:]))
-  reshaped_label_batch = jnp.reshape(label_batch,
-                                     (num_devices, label_batch.shape[0] //
-                                      num_devices, *label_batch.shape[1:]))
+  reshaped_label_batch = jnp.reshape(
+      label_batch,
+      (num_devices, label_batch.shape[0] // num_devices,
+       *label_batch.shape[1:]))
 
   # TODO(znado) we should be more efficient than replicating state each step.
   new_optimizer_state, updated_params, new_model_state = pmapped_update_params(
@@ -125,7 +129,8 @@ def data_selection(workload: spec.Workload,
                    input_queue: Iterator[Tuple[spec.Tensor, spec.Tensor]],
                    optimizer_state: spec.OptimizerState,
                    current_param_container: spec.ParameterContainer,
-                   hyperparameters: spec.Hyperparamters, global_step: int,
+                   hyperparameters: spec.Hyperparamters,
+                   global_step: int,
                    rng: spec.RandomState) -> Tuple[spec.Tensor, spec.Tensor]:
   """Select data from the infinitely repeating, pre-shuffled input queue.
 

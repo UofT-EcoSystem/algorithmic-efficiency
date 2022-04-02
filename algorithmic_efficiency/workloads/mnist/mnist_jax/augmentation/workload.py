@@ -32,7 +32,7 @@ class MnistAugmentation(MnistWorkload):
     images, labels = x[0], x[1]
     for aug in self.augment_params:
       augment_fn = getattr(self,'_augment_%s' % (aug))
-      augment_map = lambda img :augment_fn(img, self.augment_params[aug])
+      augment_map = lambda img: augment_fn(img, self.augment_params[aug])
 
       #images = jnp.apply_along_axis(augment_map, -1, images)
       for i,im in enumerate(images):
