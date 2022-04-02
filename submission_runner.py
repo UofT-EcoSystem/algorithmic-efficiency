@@ -16,15 +16,20 @@ import json
 import os
 import struct
 import time
-from typing import Optional, Tuple
+from typing import Callable, Optional, Tuple
 
 from absl import app
 from absl import flags
 from absl import logging
 import tensorflow as tf
 
+from algorithmic_efficiency import early_stopping
 from algorithmic_efficiency import halton
+<<<<<<< HEAD:submission_runner.py
 from algorithmic_efficiency import random_utils as prng
+=======
+from algorithmic_efficiency import logging_utils
+>>>>>>> origin/model_arch:algorithmic_efficiency/submission_runner.py
 from algorithmic_efficiency import spec
 from algorithmic_efficiency import checkpoint
 
@@ -43,6 +48,12 @@ WORKLOADS = {
     'mnist_jax_augmentation': {
         'workload_path': BASE_WORKLOADS_DIR + 'mnist/mnist_jax/augmentation/workload.py',
         'workload_class_name': 'MnistAugmentation'
+    },
+    'configurable_mnist_jax': {
+        'workload_path':
+            BASE_WORKLOADS_DIR + 'mnist/configurable_mnist_jax/workload.py',
+        'workload_class_name':
+            'MnistWorkload'
     },
     'mnist_pytorch': {
         'workload_path': BASE_WORKLOADS_DIR + 'mnist/mnist_pytorch/workload.py',
@@ -94,7 +105,34 @@ flags.DEFINE_string(
 flags.DEFINE_integer('num_tuning_trials',
                      20,
                      'The number of external hyperparameter trials to run.')
-flags.DEFINE_string('data_dir', '~/tensorflow_datasets/', 'Dataset location')
+flags.DEFINE_string(
+    'logging_dir', None,
+    'The path to save information about the training progress of a workload to '
+    'disk.')
+flags.DEFINE_multi_string(
+    'extra_metadata', None,
+    'Record extra metadata in the "logging_dir" along side the CSVs metrics '
+    'and JSON metadata. This is useful when doing multiple experiments and '
+    'needing a way to tell them apart. You can specify this option multiple '
+    'times. Example usage: --record_extra_metadata="key=value". Keys will be '
+    'prefixed with "extra." so to not overlap with other CSV/JSON data '
+    'attributes.')
+flags.DEFINE_string(
+    'eval_frequency_override', None,
+    'You can override the default frequency of model evaluation, which in turn '
+    'will change when information about the training progress is saved to '
+    'disk. This is not competition legal but can be used to monitor training '
+    'progress at any granularity for debugging purposes. By default the '
+    'competition evaluates the model every "eval_period_time_sec" seconds, but '
+    'instead you can choose an eval frequency in epochs or steps. These evals '
+    'contribute to the accumulated_submission_time. Example usage:'
+    'Evaluate after every epoch: --eval_frequency_override="1 epoch"'
+    'Evaluate after 100 mini-batches: --eval_frequency_override="100 step"'
+    'Note: Requires --logging_dir set to take effect.')
+flags.DEFINE_string(
+    'early_stopping_config', None,
+    'Stop training when a monitored metric has stopped improving.')
+flags.DEFINE_string('data_dir', '~/', 'Dataset location')
 flags.DEFINE_enum(
     'framework',
     None,
@@ -200,14 +238,12 @@ def train_once(workload: spec.Workload,
                update_params: spec.UpdateParamsFn,
                data_selection: spec.DataSelectionFn,
                hyperparameters: Optional[spec.Hyperparamters],
-<<<<<<< HEAD:algorithmic_efficiency/submission_runner.py
-               rng: spec.RandomState
-               ) -> Tuple[spec.Timing, spec.Steps]:
-=======
                rng: spec.RandomState,
                checkpointer: Optional[checkpoint.Checkpointer],
-               run_idx: int) -> Tuple[spec.Timing, spec.Steps]:
->>>>>>> origin/aug_shawn:submission_runner.py
+               run_idx: int,
+               record: Callable,
+               trial_idx: int) -> Tuple[spec.Timing, spec.Steps]:
+
   data_rng, opt_init_rng, model_init_rng, rng = prng.split(rng, 4)
 
   if FLAGS.console_verbosity == 1:
@@ -234,20 +270,21 @@ def train_once(workload: spec.Workload,
   eval_results = []
   global_step = 0
   training_complete = False
+  latest_eval_result = None
+  early_stop = False
+  early_stop_check = early_stopping.EarlyStopping(
+      FLAGS.early_stopping_config).early_stop_check
+
   global_start_time = time.time()
   num_checkpoints = 0
 
   logging.info('Starting training loop.')
-  while (is_time_remaining and not goal_reached and not training_complete):
+  while (is_time_remaining and not goal_reached and not training_complete and
+         not early_stop):
     step_rng = prng.fold_in(rng, global_step)
     data_select_rng, update_rng, eval_rng = prng.split(step_rng, 3)
     start_time = time.time()
-<<<<<<< HEAD:algorithmic_efficiency/submission_runner.py
-    selected_train_input_batch, selected_train_label_batch = data_selection(
-        workload, input_queue, optimizer_state, model_params, hyperparameters,
-        global_step, data_select_rng)
 
-=======
     (selected_train_input_batch,
      selected_train_label_batch,
      selected_train_mask_batch) = data_selection(workload,
@@ -257,7 +294,6 @@ def train_once(workload: spec.Workload,
                                                  hyperparameters,
                                                  global_step,
                                                  data_select_rng)
->>>>>>> origin/aug_shawn:submission_runner.py
     try:
       optimizer_state, model_params, model_state = update_params(
           workload=workload,
@@ -275,44 +311,38 @@ def train_once(workload: spec.Workload,
           rng=update_rng)
     except spec.TrainingCompleteError:
       training_complete = True
-    global_step += 1
     current_time = time.time()
     accumulated_submission_time += current_time - start_time
     is_time_remaining = (
         accumulated_submission_time < workload.max_allowed_runtime_sec)
 
-    # Check if submission is eligible for an untimed eval.
-    if (current_time - last_eval_time >= workload.eval_period_time_sec or
-        training_complete):
-      latest_eval_result = workload.eval_model(model_params,
-                                               model_state,
-                                               eval_rng,
-                                               data_dir)
-      if FLAGS.console_verbosity == 1:
-        logging.set_verbosity(logging.INFO)
-
+    is_eligible_for_untimed_eval = (
+        not FLAGS.eval_frequency_override and
+        current_time - last_eval_time >= workload.eval_period_time_sec)
+    eval_requested = record.check_eval_frequency_override(
+        workload, global_step, batch_size)
+    # Check if submission should be evaluated.
+    if (is_eligible_for_untimed_eval or eval_requested or training_complete):
+      latest_eval_result = workload.eval_model(model_params, model_state,
+                                               eval_rng, data_dir)
       logging.info(f'{current_time - global_start_time:.2f}s\t{global_step}'
                    f'\t{latest_eval_result}')
-      if FLAGS.console_verbosity == 1:
-        logging.set_verbosity(logging.WARNING)
-
-      last_eval_time = current_time
+      if is_eligible_for_untimed_eval:
+        last_eval_time = current_time
       eval_results.append((global_step, latest_eval_result))
       goal_reached = workload.has_reached_goal(latest_eval_result)
-
-    # Check whether or not it's time to save another checkpoint
-    if FLAGS.cp_dir is not None:
-      checkpointer.check_and_save(
-        model_params, 
-        model_state,
-        current_step=global_step,
-        current_eval=len(eval_results),
-        current_batch_size=batch_size,
-        run_idx=run_idx,
-        final=(training_complete or goal_reached)
-        )
+      early_stop = early_stop_check(latest_eval_result, global_step)
+      record.save_eval(workload, hyperparameters, trial_idx, global_step,
+                       batch_size, latest_eval_result, global_start_time,
+                       accumulated_submission_time, goal_reached,
+                       is_time_remaining, training_complete)
+    global_step += 1
 
   metrics = {'eval_results': eval_results, 'global_step': global_step}
+  record.trial_complete(workload, hyperparameters, trial_idx, global_step,
+                        batch_size, latest_eval_result, global_start_time,
+                        accumulated_submission_time, goal_reached,
+                        is_time_remaining, training_complete)
   return accumulated_submission_time, metrics
 
 
@@ -333,9 +363,6 @@ def score_submission_on_workload(workload: spec.Workload,
   data_selection = submission_module.data_selection
   get_batch_size = submission_module.get_batch_size
   batch_size = get_batch_size(workload_name)
-<<<<<<< HEAD:algorithmic_efficiency/submission_runner.py
-  
-=======
 
   ckpt = None
   if FLAGS.cp_dir is not None:
@@ -346,7 +373,14 @@ def score_submission_on_workload(workload: spec.Workload,
       ckpt_freq=FLAGS.cp_freq,
     )
 
->>>>>>> origin/aug_shawn:submission_runner.py
+  if FLAGS.logging_dir:
+    # Save training progress to disk eg. loss, hparams, and other metadata
+    record = logging_utils.Recorder(workload, workload_name, FLAGS.logging_dir,
+                                    FLAGS.submission_path, tuning_ruleset,
+                                    tuning_search_space, num_tuning_trials)
+  else:
+    record = logging_utils.NoOpRecorder()  # Do nothing if no logging_dir is set
+
   if tuning_ruleset == 'external':
     # If the submission runner is responsible for hyperparameter tuning, load in
     # the search space and generate a list of randomly selected hyperparameter
@@ -360,7 +394,7 @@ def score_submission_on_workload(workload: spec.Workload,
           json.load(search_space_file), num_tuning_trials)
     all_timings = []
     all_metrics = []
-    for hi, hyperparameters in enumerate(tuning_search_space):
+    for trial_idx, hyperparameters in enumerate(tuning_search_space):
       # Generate a new seed from hardware sources of randomness for each trial.
       rng_seed = struct.unpack('I', os.urandom(4))[0]
       rng = prng.PRNGKey(rng_seed)
@@ -373,10 +407,11 @@ def score_submission_on_workload(workload: spec.Workload,
       rng, _ = prng.split(rng, 2)
       if FLAGS.console_verbosity == 1:
         logging.set_verbosity(logging.INFO)
-      logging.info(f'--- Tuning run {hi + 1}/{num_tuning_trials} ---')
+      logging.info(f'--- Tuning run {trial_idx + 1}/{num_tuning_trials} ---')
       timing, metrics = train_once(workload, batch_size, data_dir,
                                    init_optimizer_state, update_params,
-                                   data_selection, hyperparameters, rng, ckpt, hi)
+                                   data_selection, hyperparameters, rng, record,
+                                   trial_idx + 1)
       all_timings.append(timing)
       all_metrics.append(metrics)
     score = min(all_timings)
@@ -400,8 +435,9 @@ def score_submission_on_workload(workload: spec.Workload,
     # If the submission is responsible for tuning itself, we only need to run it
     # once and return the total time.
     score, _ = train_once(workload, batch_size, init_optimizer_state,
-                          update_params, data_selection, None, rng)
-  # TODO(znado): record and return other information (number of steps).
+                          update_params, data_selection, None, rng, record, 1)
+  # TODO(znado): record score.
+  record.workload_complete(score)
   return score
 
 
@@ -427,14 +463,9 @@ def main(_):
                                        FLAGS.data_dir,
                                        FLAGS.tuning_ruleset,
                                        FLAGS.tuning_search_space,
-<<<<<<< HEAD:algorithmic_efficiency/submission_runner.py
-                                       FLAGS.num_tuning_trials
-                                      )
-=======
                                        FLAGS.num_tuning_trials)
                                        
   logging.set_verbosity(logging.INFO)
->>>>>>> origin/aug_shawn:submission_runner.py
   logging.info('Final %s score: %f', FLAGS.workload, score)
 
 
