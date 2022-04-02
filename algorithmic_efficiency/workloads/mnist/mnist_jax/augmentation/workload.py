@@ -55,7 +55,9 @@ class MnistAugmentation(MnistWorkload):
     im = Image.fromarray(image[:,:,0])
     return jnp.array(im.transpose(Image.FLIP_LEFT_RIGHT)).reshape(image.shape)
     
-  
+  def _augment_translate(self, image, shift):
+    """Translations"""
+    pass
 
   
 
