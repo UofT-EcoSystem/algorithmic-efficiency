@@ -1,4 +1,4 @@
-r"""Run a submission on a single workload.
+"""Run a submission on a single workload.
 
 Example command:
 
@@ -25,11 +25,8 @@ import tensorflow as tf
 
 from algorithmic_efficiency import early_stopping
 from algorithmic_efficiency import halton
-<<<<<<< HEAD:submission_runner.py
 from algorithmic_efficiency import random_utils as prng
-=======
 from algorithmic_efficiency import logging_utils
->>>>>>> origin/model_arch:algorithmic_efficiency/submission_runner.py
 from algorithmic_efficiency import spec
 from algorithmic_efficiency import checkpoint
 
