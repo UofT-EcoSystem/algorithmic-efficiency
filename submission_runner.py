@@ -96,6 +96,9 @@ flags.DEFINE_enum(
     enum_values=['external', 'self'],
     help='Which tuning ruleset to use.')
 flags.DEFINE_string(
+    'augments', None,
+    'The path to the JSON file containing augmentations to apply to data.')
+flags.DEFINE_string(
     'tuning_search_space',
     'baselines/mnist/tuning_search_space.json',
     'The path to the JSON file describing the external tuning search space.')

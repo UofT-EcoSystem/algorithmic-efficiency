@@ -12,7 +12,7 @@ import tensorflow as tf
 import tensorflow_datasets as tfds
 import tensorflow_addons as tfa
 
-from workloads.mnist.mnist_jax.workload import MnistWorkload
+from algorithmic_efficiency.workloads.mnist.mnist_jax.workload import MnistWorkload
 from absl import flags
 
 class MnistAugmentation(MnistWorkload):
