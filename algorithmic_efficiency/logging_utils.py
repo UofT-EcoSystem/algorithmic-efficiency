@@ -14,6 +14,7 @@ import pandas as pd
 import psutil
 
 from algorithmic_efficiency import spec
+from algorithmic_efficiency import wandb_utils
 
 FLAGS = flags.FLAGS
 
@@ -232,7 +233,8 @@ class Recorder:
                submission_path: str,
                tuning_ruleset: str,
                tuning_search_space_path: Optional[str] = None,
-               num_tuning_trials: Optional[int] = None):
+               num_tuning_trials: Optional[int] = None,
+               enable_wandb: Optional[bool] = False):
     self.workload_name = workload_name
     self.workload = workload
     self.logging_dir = logging_dir
@@ -240,6 +242,7 @@ class Recorder:
     self.tuning_ruleset = tuning_ruleset
     self.tuning_search_space_path = tuning_search_space_path
     self.num_tuning_trials = num_tuning_trials
+    self.enable_wandb = enable_wandb
     self.status = 'INCOMPLETE'
     self.last_epoch_evaluated = None
     self.workload_log_dir = os.path.join(self.logging_dir, self.workload_name)
@@ -318,6 +321,10 @@ class Recorder:
     with open(metadata_filepath, 'w', encoding='utf-8') as f:
       json.dump(metadata, f, ensure_ascii=False, indent=4)
 
+    if self.wandb_enabled:
+      wandb_utils.setup(metadata)
+
+
   def _write_package_list_file(self):
     """Write "packages.txt" to disk.
 
@@ -358,6 +365,10 @@ class Recorder:
                                      'trial_' + str(trial_idx), 'metadata.json')
     with open(metadata_filepath, 'w', encoding='utf-8') as f:
       json.dump(metadata, f, ensure_ascii=False, indent=4)
+
+    if self.wandb_enabled:
+      wandb_utils.log(metadata)
+
 
   def trial_complete(self, workload: spec.Workload,
                      hyperparameters: Optional[spec.Hyperparamters],
@@ -453,6 +464,10 @@ class Recorder:
     csv_path = os.path.join(trial_output_path, 'measurements.csv')
     logging.info(f'Recording measurements to: {csv_path}')
     self._append_to_csv(measurements, csv_path)
+
+    if self.wandb_enabled:
+      wandb_utils.log(measurements)
+
 
   def check_eval_frequency_override(self, workload: spec.Workload,
                                     global_step: int, batch_size: int):

@@ -12,3 +12,4 @@ logs*/
 *.csv
 adam_mnist_tuning_search_space.json
 mnist_early_stopping_config.json
+wandb
