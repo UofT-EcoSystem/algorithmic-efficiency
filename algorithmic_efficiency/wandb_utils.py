@@ -1,3 +1,4 @@
+import datetime
 import sys
 import json
 import subprocess
@@ -66,7 +67,8 @@ def main():
       overrides = json.load(f)
     config.update(overrides)
 
-  experiment_dir = f'{config["logging_dir"]}/layer_norm_{config["layer_norm"]}-activation_{config["activation"]}-latent_{config["latent_dim"]}-hidden_{config["hidden_dim"]}-num_message_{config["num_message_passing_step"]}-dropout_{config["dropout_rate"]}-batch_{config["batch_size"]}/'
+  time_now  = datetime.datetime.now().strftime('%m_%d_%Y_%H_%M_%S')
+  experiment_dir = f'{config["logging_dir"]}/{time_now}-layer_norm_{config["layer_norm"]}-learning_rate{config["learning_rate"]}-activation_{config["activation"]}-latent_{config["latent_dim"]}-hidden_{config["hidden_dim"]}-num_message_{config["num_message_passing_step"]}-dropout_{config["dropout_rate"]}-batch_{config["batch_size"]}/'
 
   tuning_search_space = write_tuning_search_space(config)
   early_stopping_config = write_early_stopping(config)
