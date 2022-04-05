@@ -56,6 +56,10 @@ WORKLOADS = {
         'workload_path': BASE_WORKLOADS_DIR + 'mnist/mnist_pytorch/workload.py',
         'workload_class_name': 'MnistWorkload',
     },
+    'cifar10_jax': {
+      'workload_path': BASE_WORKLOADS_DIR + 'cifar10/cifar10_jax/workload.py',
+      'workload_class_name': 'CIFAR10Workload',
+    },
     'imagenet_jax': {
         'workload_path':
             BASE_WORKLOADS_DIR + 'imagenet/imagenet_jax/workload.py',
@@ -324,6 +328,8 @@ def train_once(workload: spec.Workload,
         logging.set_verbosity(logging.INFO)
       logging.info(f'{current_time - global_start_time:.2f}s\t{global_step}'
                    f'\t{latest_eval_result}')
+      if FLAGS.console_verbosity == 1:
+        logging.set_verbosity(logging.WARNING)
 
       if is_eligible_for_untimed_eval:
         last_eval_time = current_time

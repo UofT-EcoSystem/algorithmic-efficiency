@@ -249,7 +249,7 @@ class Recorder:
     self._write_workload_metadata_file()
     self._write_package_list_file()
 
-  def _write_workload_metadata_file(self, score: float = None):
+  def _write_workload_metadata_file(self, score: float = None, git=False):
     """Write "metadata.json" to disk.
 
     It is is created at the start of a workload and includes the datetime,
@@ -286,14 +286,14 @@ class Recorder:
     metadata['python_version'] = platform.python_version()  # Ex. '3.8.10'
     metadata['python_compiler'] = platform.python_compiler()  # Ex. 'GCC 9.3.0'
     # Note: do not store hostname as that may be sensitive
-
-    try:
-      metadata['git_branch'] = _get_git_branch()
-      metadata['git_commit_hash'] = _get_git_commit_hash()
-      # Note: do not store git repo url as it may be sensitive or contain a
-      # secret.
-    except:
-      logging.warn('Unable to record git information. Continuing without it.')
+    if git:
+      try:
+        metadata['git_branch'] = _get_git_branch()
+        metadata['git_commit_hash'] = _get_git_commit_hash()
+        # Note: do not store git repo url as it may be sensitive or contain a
+        # secret.
+      except:
+        logging.warn('Unable to record git information. Continuing without it.')
 
     try:
       metadata['cpu_model_name'] = _get_cpu_model_name()
