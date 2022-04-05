@@ -234,7 +234,7 @@ class Recorder:
                tuning_ruleset: str,
                tuning_search_space_path: Optional[str] = None,
                num_tuning_trials: Optional[int] = None,
-               enable_wandb: Optional[bool] = False):
+               wandb_enabled: Optional[bool] = False):
     self.workload_name = workload_name
     self.workload = workload
     self.logging_dir = logging_dir
@@ -242,8 +242,10 @@ class Recorder:
     self.tuning_ruleset = tuning_ruleset
     self.tuning_search_space_path = tuning_search_space_path
     self.num_tuning_trials = num_tuning_trials
-    self.enable_wandb = enable_wandb
+    self.wandb_enabled = wandb_enabled
+    self.existing_wandb_run = None
     self.status = 'INCOMPLETE'
+    self.last_trial_idx = None
     self.last_epoch_evaluated = None
     self.workload_log_dir = os.path.join(self.logging_dir, self.workload_name)
     if os.path.isdir(self.workload_log_dir):
@@ -321,10 +323,6 @@ class Recorder:
     with open(metadata_filepath, 'w', encoding='utf-8') as f:
       json.dump(metadata, f, ensure_ascii=False, indent=4)
 
-    if self.wandb_enabled:
-      wandb_utils.setup(metadata)
-
-
   def _write_package_list_file(self):
     """Write "packages.txt" to disk.
 
@@ -365,10 +363,6 @@ class Recorder:
                                      'trial_' + str(trial_idx), 'metadata.json')
     with open(metadata_filepath, 'w', encoding='utf-8') as f:
       json.dump(metadata, f, ensure_ascii=False, indent=4)
-
-    if self.wandb_enabled:
-      wandb_utils.log(metadata)
-
 
   def trial_complete(self, workload: spec.Workload,
                      hyperparameters: Optional[spec.Hyperparamters],
@@ -456,17 +450,28 @@ class Recorder:
         workload, hyperparameters, trial_idx, global_step, batch_size,
         latest_eval_result, global_start_time, accumulated_submission_time,
         goal_reached, is_time_remaining, training_complete, early_stop)
-
-    # Save to CSV file
     trial_output_path = os.path.join(self.workload_log_dir,
                                      'trial_' + str(trial_idx))
-    os.makedirs(trial_output_path, exist_ok=True)
+
+    if trial_idx != self.last_trial_idx:
+      # this is a new trial
+      self.last_trial_idx = trial_idx
+      os.makedirs(trial_output_path, exist_ok=True)
+
+      if self.wandb_enabled:
+        if self.existing_wandb_run:
+          self.existing_wandb_run.finish()
+        config = {'trial_idx': trial_idx}
+        self.existing_wandb_run = wandb_utils.setup(config=config, name=trial_idx)
+
+    if self.wandb_enabled:
+      wandb_utils.log(measurements)
+
+    # Save to CSV file
     csv_path = os.path.join(trial_output_path, 'measurements.csv')
     logging.info(f'Recording measurements to: {csv_path}')
     self._append_to_csv(measurements, csv_path)
 
-    if self.wandb_enabled:
-      wandb_utils.log(measurements)
 
 
   def check_eval_frequency_override(self, workload: spec.Workload,

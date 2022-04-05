@@ -7,6 +7,13 @@
 
 set -e # exit on error
 
+export WANDB_ENTITY=danielsnider
+export WANDB_PROJECT=tests
+export WANDB_NAME="mnist_batch_norm"
+export WANDB_NOTES=""
+# export WANDB_MODE="offline"
+
+
 LOGGING_DIR='./experiments/batchnorm_checkpoints/logs'
 rm -rf $LOGGING_DIR
 mkdir -p $LOGGING_DIR
@@ -19,7 +26,7 @@ DROPOUT_RATES='0'
 BATCH_SIZES='1024'
 OPTIMIZER='adam'
 
-EVAL_FREQUENCY_OVERRIDE='1 step'
+EVAL_FREQUENCY_OVERRIDE='45 step'
 TARGET_VALUE='0.873'
 NUM_TRIALS='3'
 
@@ -76,6 +83,7 @@ run_cmd () {
     --eval_frequency_override="$EVAL_FREQUENCY_OVERRIDE" \
     --early_stopping_config="$EARLY_STOPPING_CONFIG" \
     --save_checkpoints \
+    --enable_wandb \
     --extra_metadata="mnist_config.target_value=$TARGET_VALUE" \
     --extra_metadata="mnist_config.max_allowed_runtime_sec=$MAX_ALLOWED_RUNTIME_SEC" \
     --extra_metadata="mnist_config.activation_fn=$ACTIVATION" \

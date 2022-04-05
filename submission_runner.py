@@ -140,6 +140,9 @@ flags.DEFINE_string(
     'early_stopping_config', None,
     'Stop training when a monitored metric has stopped improving.')
 flags.DEFINE_boolean(
+    'enable_wandb', False, help='Saves all collected measurements to .'
+    'Weights and Biases. See wandb_example/README.md for usage instructions.')
+flags.DEFINE_boolean(
     'save_checkpoints', False, help='Saves a checkpoint at the end of each '
     'eval. Note: Requires --logging_dir set to take effect.')
 flags.DEFINE_string('data_dir', '~/tensorflow_datasets/', 'Dataset location')
@@ -251,6 +254,7 @@ def train_once(workload: spec.Workload,
   logging.info('Starting training loop.')
   while (is_time_remaining and not goal_reached and not training_complete and
          not early_stop):
+    global_step += 1
     step_rng = prng.fold_in(rng, global_step)
     data_select_rng, update_rng, eval_rng = prng.split(step_rng, 3)
     start_time = time.time()
@@ -312,7 +316,6 @@ def train_once(workload: spec.Workload,
           FLAGS.logging_dir,
           global_step,
           trial_idx)
-    global_step += 1
   metrics = {'eval_results': eval_results, 'global_step': global_step}
   record.trial_complete(workload, hyperparameters, trial_idx, global_step,
                         batch_size, latest_eval_result, global_start_time,
@@ -342,7 +345,8 @@ def score_submission_on_workload(workload: spec.Workload,
     # Save training progress to disk eg. loss, hparams, and other metadata
     record = logging_utils.Recorder(workload, workload_name, FLAGS.logging_dir,
                                     FLAGS.submission_path, tuning_ruleset,
-                                    tuning_search_space, num_tuning_trials)
+                                    tuning_search_space, num_tuning_trials,
+                                    wandb_enabled=FLAGS.enable_wandb)
   else:
     record = logging_utils.NoOpRecorder()  # Do nothing if no logging_dir is set
 

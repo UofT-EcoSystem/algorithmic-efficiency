@@ -1,4 +1,4 @@
-# WANDB_MODE=offline wandb sweep experiments/model_arch_ogbg/sweep_2.yaml
+# WANDB_MODE=offline wandb sweep experiments/model_arch_ogbg/sweep_gnn_model_size.yaml
 entity: danielsnider
 project: mlc_held_out_gnn
 name: sweep_gnn_model_size
@@ -11,10 +11,6 @@ metric:
 parameters:
   learning_rate:
     values: [0.0001, 0.001, 0.01]
-  optimizer:
-    values: ['adam']
-  batch_size:
-    values: ['2048']
   activation:
     values: ['relu', 'gelu']
   latent_dim:
@@ -23,8 +19,6 @@ parameters:
     values: [128, 256, 512]
   num_message_passing_step:
     values: [4, 5, 6]
-  dropout_rate:
-    values: [0.1]
 command:
   - python3
   - ${program}
