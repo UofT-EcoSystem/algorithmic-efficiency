@@ -167,7 +167,8 @@ def plot_density(grids, density, label=None):
     plt.ylim(1e-10, 1e2)
     plt.ylabel("Density")
     plt.xlabel("Eigenvalue")
-    plt.legend()
+    if not (label is None):
+        plt.legend()
     plt.show()
 
 
