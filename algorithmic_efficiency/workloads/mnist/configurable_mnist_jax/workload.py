@@ -2,6 +2,7 @@
 
 from typing import Tuple
 
+from jax import lax
 from absl import flags
 from flax import linen as nn
 import jax
@@ -228,6 +229,19 @@ class MnistWorkload(spec.Workload):
       return jax.nn.sigmoid(logits_batch)
     if loss_type == spec.LossType.MEAN_SQUARED_ERROR:
       return logits_batch
+
+  def sync_batch_stats(self, model_state):
+    """Sync the batch statistics across replicas."""
+    # An axis_name is passed to pmap which can then be used by pmean.
+    # In this case each device has its own version of the batch statistics and
+    # we average them.
+    if self.batch_norm == 'off':
+      return model_state
+    avg_fn = jax.pmap(lambda x: lax.pmean(x, 'x'), 'x')
+    new_model_state = model_state.copy(
+        {'batch_stats': avg_fn(model_state['batch_stats'])})
+    return new_model_state
+
 
   def model_fn(
       self, params: spec.ParameterContainer, input_batch: spec.Tensor,
