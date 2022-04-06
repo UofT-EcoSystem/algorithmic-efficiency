@@ -3,11 +3,11 @@ entity: danielsnider
 project: mlc_held_out_gnn
 name: sweep_gnn_model_size
 description: "After first presentation to WG, George helped point me in the right direction: fewer model sizes are okay, try more learning rates, and a higher target mAP."
-program: algorithmic_efficiency/wandb_utils.py
+program: experiments/model_arch_ogbg/wandb_gnn_model_size.py
 method: grid
 metric:
-  name: validation_loss
-  goal: minimize
+  name: mean_average_precision
+  goal: maximize
 parameters:
   learning_rate:
     values: [0.0001, 0.001, 0.01]

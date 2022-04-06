@@ -1,3 +1,8 @@
+#!/bin/bash
+#
+# Usage:
+# sbatch experiments/model_arch_ogbg/slurm_model_size.sh
+
 #SBATCH --nodes 2
 #SBATCH --partition t4v2,rtx6000
 #SBATCH --time=2:30:00

@@ -6,8 +6,8 @@ description: ""
 program: algorithmic_efficiency/wandb_utils.py
 method: grid
 metric:
-  name: validation_loss
-  goal: minimize
+  name: mean_average_precision
+  goal: maximize
 parameters:
   learning_rate:
     values: [0.0001, 0.001, 0.01]
