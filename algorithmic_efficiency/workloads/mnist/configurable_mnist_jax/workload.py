@@ -48,12 +48,13 @@ class _Model(nn.Module):
     num_classes = 10
     x = x.reshape((x.shape[0], input_size))  # Flatten.
     if self.skip_connection > 0:
-      w = hk.get_parameter(
-        "w", 
-        shape=[input_size, self.model_depth], 
-        dtype=x.dtype, 
-        init=hk.initializers.TruncatedNormal(1. / np.sqrt(input_size)))
-      _x = jnp.dot(w, x)
+      def _linear(x):
+        return hk.Linear(self.model_width, hk.initializers.Identity())(x)
+      linear_forward = hk.transform(_linear)
+
+      key = jax.random.PRNGKey(42)
+      params = linear_forward.init(key, x)
+      _x = linear_forward.apply(params, key, x)
       skip_step = 0
     for _ in range(self.model_depth - 1):
       if self.batch_norm == 'off':
