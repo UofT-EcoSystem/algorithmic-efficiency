@@ -60,6 +60,10 @@ WORKLOADS = {
       'workload_path': BASE_WORKLOADS_DIR + 'cifar10/cifar10_jax/workload.py',
       'workload_class_name': 'CIFAR10Workload',
     },
+    'cifar10_jax_custom': {
+      'workload_path': BASE_WORKLOADS_DIR + 'cifar10/cifar10_jax/augmented/workload.py',
+      'workload_class_name': 'Custom_CIFAR10Workload',
+    },
     'imagenet_jax': {
         'workload_path':
             BASE_WORKLOADS_DIR + 'imagenet/imagenet_jax/workload.py',

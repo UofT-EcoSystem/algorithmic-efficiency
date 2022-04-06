@@ -13,7 +13,7 @@ from algorithmic_efficiency import spec
 
 def get_batch_size(workload_name):
   # Return the global batch size.
-  batch_sizes = {'cifar10_jax': 64}
+  batch_sizes = {'cifar10_jax': 64, 'cifar10_jax_custom': 64}
   return batch_sizes[workload_name]
 
 
