@@ -183,19 +183,20 @@ class MnistWorkload(spec.Workload):
     return (tf.cast(image, tf.float32) - self.train_mean) / self.train_stddev
 
   def _build_dataset(self, data_rng: jax.random.PRNGKey, split: str,
-                     data_dir: str, batch_size):
+                     data_dir: str, batch_size: int, repeat: bool = True):
     ds = tfds.load('mnist', split=split)
     ds = ds.cache()
     ds = ds.map(lambda x: (self._normalize(x['image']), x['label'], None))
-    if split == 'train':
+    if repeat and split == 'train':
       ds = ds.shuffle(1024, seed=data_rng[0])
       ds = ds.repeat()
     ds = ds.batch(batch_size)
     return tfds.as_numpy(ds)
 
   def build_input_queue(self, data_rng: jax.random.PRNGKey, split: str,
-                        data_dir: str, batch_size: int):
-    return iter(self._build_dataset(data_rng, split, data_dir, batch_size))
+                        data_dir: str, batch_size: int, 
+                        repeat: bool = True):
+    return iter(self._build_dataset(data_rng, split, data_dir, batch_size, repeat=repeat))
 
   def preprocess_for_train(self, selected_raw_input_batch: spec.Tensor,
                            selected_label_batch: spec.Tensor,
