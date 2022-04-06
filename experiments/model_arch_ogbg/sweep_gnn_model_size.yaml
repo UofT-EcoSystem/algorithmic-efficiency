@@ -22,4 +22,4 @@ parameters:
 command:
   - python3
   - ${program}
-  - ${args_json}
+  - ${args_json_file}
