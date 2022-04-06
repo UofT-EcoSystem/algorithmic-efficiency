@@ -14,11 +14,11 @@ export WANDB_NOTES=""
 # export WANDB_MODE="offline"
 
 
-LOGGING_DIR='./experiments/batchnorm_checkpoints/logs'
+LOGGING_DIR='./experiments/batchnorm_checkpoints-2-batch_stats/logs'
 rm -rf $LOGGING_DIR
 mkdir -p $LOGGING_DIR
 
-BATCH_NORMS='off affine-activation-batchnorm affine-batchnorm-activation'
+BATCH_NORMS='affine-activation-batchnorm affine-batchnorm-activation off'
 ACTIVATIONS='relu'
 MODEL_WIDTHS='256'
 MODEL_DEPTHS='1'
@@ -26,7 +26,7 @@ DROPOUT_RATES='0'
 BATCH_SIZES='1024'
 OPTIMIZER='adam'
 
-EVAL_FREQUENCY_OVERRIDE='45 step'
+EVAL_FREQUENCY_OVERRIDE='1 step'
 TARGET_VALUE='0.873'
 NUM_TRIALS='3'
 

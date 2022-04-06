@@ -238,10 +238,18 @@ class MnistWorkload(spec.Workload):
     del rng
     del update_batch_norm
     train = mode == spec.ForwardPassMode.TRAIN
-    logits_batch = self._model.apply({'params': params},
-                                     input_batch,
-                                     train=train)
-    return logits_batch, None
+    if train:
+      logits_batch, new_model_state = self._model.apply({'params': params},
+                                      input_batch,
+                                      mutable=['batch_stats'],
+                                      train=train)
+      return logits_batch, new_model_state
+    else:
+      logits_batch = self._model.apply({'params': params},
+                                      input_batch,
+                                      mutable=False,
+                                      train=train)
+      return logits_batch, None
 
   # Does NOT apply regularization, which is left to the submitter to do in
   # `update_params`.
