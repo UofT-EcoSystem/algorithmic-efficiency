@@ -37,6 +37,7 @@ class _Model(nn.Module):
         extra_metadata.get('extra.mnist_config.batch_size', None))
     self.optimizer = extra_metadata.get('extra.mnist_config.optimizer', None)
     self.batch_norm = extra_metadata.get('extra.mnist_config.batch_norm', 'off')
+    self.skip_connection = extra_metadata.get('extra.mnist_config.skip_connection', 0)
 
   @nn.compact
   def __call__(self, x: spec.Tensor, train: bool):
@@ -44,6 +45,9 @@ class _Model(nn.Module):
     input_size = 28 * 28
     num_classes = 10
     x = x.reshape((x.shape[0], input_size))  # Flatten.
+    if self.skip_connection > 0:
+      _x = x
+      skip_step = 0
     for _ in range(self.model_depth - 1):
       if self.batch_norm == 'off':
         x = nn.Dense(features=self.model_width, use_bias=True)(x)
@@ -56,6 +60,15 @@ class _Model(nn.Module):
         x = nn.Dense(features=self.model_width, use_bias=True)(x)
         x = nn.BatchNorm(use_running_average=not train, momentum=0.99)(x)
         x = self.activation_fn(x)
+      
+      if self.skip_connection > 0:
+        if skip_step == self.skip_connection:
+          x = x + _x
+          skip_step = 0
+          _x = x
+        else:
+          skip_step += 1
+        
     x = nn.Dense(features=num_classes, use_bias=True)(x)
     x = nn.log_softmax(x)
     return x
