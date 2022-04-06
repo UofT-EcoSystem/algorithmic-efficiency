@@ -6,6 +6,8 @@ from absl import flags
 from flax import linen as nn
 import jax
 import jax.numpy as jnp
+import haiku as hk
+import numpy as np
 from algorithmic_efficiency import random_utils as prng
 import tensorflow as tf
 import tensorflow_datasets as tfds
@@ -46,7 +48,12 @@ class _Model(nn.Module):
     num_classes = 10
     x = x.reshape((x.shape[0], input_size))  # Flatten.
     if self.skip_connection > 0:
-      _x = x
+      w = hk.get_parameter(
+        "w", 
+        shape=[input_size, self.model_depth], 
+        dtype=x.dtype, 
+        init=hk.initializers.TruncatedNormal(1. / np.sqrt(input_size)))
+      _x = jnp.dot(w, x)
       skip_step = 0
     for _ in range(self.model_depth - 1):
       if self.batch_norm == 'off':
