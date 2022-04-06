@@ -1,9 +1,10 @@
 # WANDB_MODE=offline wandb sweep experiments/model_arch_ogbg/sweep_gnn_batch_norm.yaml
+# wandb agent danielsnider/mlc_held_out_gnn/agolsekd
 entity: danielsnider
 project: mlc_held_out_gnn
 name: sweep_gnn_batch_norm
 description: ""
-program: algorithmic_efficiency/wandb_utils.py
+program: experiments/model_arch_ogbg/wandb_gnn_layer_norm.py
 method: grid
 metric:
   name: mean_average_precision
