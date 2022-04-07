@@ -1,6 +1,7 @@
 """MNIST workload implemented in Jax."""
 
 from typing import Tuple
+from absl import logging
 
 from flax import linen as nn
 import jax
@@ -8,40 +9,44 @@ import haiku as hk
 import jax.numpy as jnp
 import tensorflow as tf
 import tensorflow_datasets as tfds
-from workloads.mnist.workload import Mnist
+from workloads.fmnist.workload import FMnist
 
 from algorithmic_efficiency import spec
 
-class ExpModel(nn.Module):
-    def __init__(self, num_hidden: int, num_layer: int, 
-                activation_fn: str, input_size: int = 28, num_classes: int = 10):
-        super().__init__()
+class Model(nn.Module):
+    def setup(self):
+        extra_metadata = {
+            'num_hidden': 128,
+            'num_layer': 4,
+            'activation_fn': 'relu',
+            'input_size': 28,
+            'num_classes': 10,
+            'skip_connection': 1
+        }
         function_dict = {
             'relu': jax.nn.relu,
             'sigmoid': jax.nn.sigmoid,
             'hard_tanh': jax.nn.hard_tanh,
             'gelu': jax.nn.gelu
         }
-        self._act_func = function_dict[activation_fn]
-        self._num_hidden = num_hidden # model width
-        self._num_layer = num_layer # model depth, number of dense layers
-        self._dropout = dropout # dropout rate
-        self._input_size = input_size # for reshaping
-        self._num_classes = num_classes
-        self.skip_connection = 1
+        self._act_func = function_dict[extra_metadata['activation_fn']]
+        self._num_hidden = extra_metadata['num_hidden'] # model width
+        self._num_layer = extra_metadata['num_layer'] # model depth, number of dense layers
+        self._input_size = extra_metadata['input_size'] # for reshaping
+        self._num_classes = extra_metadata['num_classes']
+        self._skip_connection = extra_metadata['skip_connection']
     
     @nn.compact
     def __call__(self, x: spec.Tensor, train: bool):
-        dropout_rate = self._dropout if train else 0.
         del train
         input_size = self._input_size * self._input_size
         num_hidden = self._num_hidden
         num_classes = self._num_classes
         x = x.reshape((x.shape[0], input_size))  # Flatten.
-        if self.skip_connection > 0:
-          print(starting skip connection)
+        if self._skip_connection > 0:
+          logging.info('starting skip connection')
           def _linear(x):
-            return hk.Linear(self.model_width, hk.initializers.Identity())(x)
+            return hk.Linear(num_hidden, hk.initializers.Identity())(x)
           linear_forward = hk.transform(_linear)
 
           key = jax.random.PRNGKey(42)
@@ -52,8 +57,8 @@ class ExpModel(nn.Module):
           x = nn.Dense(features=num_hidden, use_bias=True)(x)
           x = self._act_func(x)
 
-          if self.skip_connection > 0:
-            if skip_step == self.skip_connection:
+          if self._skip_connection > 0:
+            if skip_step == self._skip_connection:
               x = x + _x
               skip_step = 0
               _x = x
@@ -63,20 +68,19 @@ class ExpModel(nn.Module):
         x = nn.log_softmax(x)
         return x
 
-class MnistWorkload(Mnist):
+class FMnistWorkload(FMnist):
 
-  def __init__(self, num_hidden: int = 128, num_layer: int = 2, 
-                activation_fn: str = 'relu', input_size: int = 28, num_classes: int = 10:
+  def __init__(self):
     self._eval_ds = None
     self._param_shapes = None
-    self._model = ExpModel(num_hidden, num_layer, activation_fn, input_size, num_classes)
+    self._model = Model()
 
   def _normalize(self, image):
     return (tf.cast(image, tf.float32) - self.train_mean) / self.train_stddev
 
   def _build_dataset(self, data_rng: jax.random.PRNGKey, split: str,
                      data_dir: str, batch_size):
-    print("Loading FashionMNIST dataset")
+    logging.info("Loading FashionMNIST dataset")
     ds = tfds.load('fashion_mnist', split=split)
     ds = ds.cache()
     ds = ds.map(lambda x: (self._normalize(x['image']), x['label']))

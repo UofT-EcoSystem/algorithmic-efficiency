@@ -30,6 +30,10 @@ import algorithmic_efficiency.random_utils as prng
 BASE_WORKLOADS_DIR = "algorithmic_efficiency/workloads/"
 
 WORKLOADS = {
+    'fmnist_jax': {
+        'workload_path': BASE_WORKLOADS_DIR + 'fmnist/fmnist_jax/workload.py',
+        'workload_class_name': 'FMnistWorkload'
+    },
     'mnist_jax': {
         'workload_path': BASE_WORKLOADS_DIR + 'mnist/mnist_jax/workload.py',
         'workload_class_name': 'MnistWorkload'
