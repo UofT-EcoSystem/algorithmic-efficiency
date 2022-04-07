@@ -41,7 +41,7 @@ def main():
     'num_message_passing_step': 5,
     'dropout_rate': 0.1,
     'num_trials': 1,
-    'logging_dir': '/FS1/dans/mlc-gnn-logs-3-step',
+    'logging_dir': '/h/dans/algorithmic-efficiency/logs/gnn_norm/',
     'eval_frequency_override': '100 step',
     # 'eval_frequency_override': '1 step',
     'max_allowed_runtime_sec': 72000,
