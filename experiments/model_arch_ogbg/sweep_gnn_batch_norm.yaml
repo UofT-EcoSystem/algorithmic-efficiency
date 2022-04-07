@@ -10,10 +10,10 @@ metric:
   name: mean_average_precision
   goal: maximize
 parameters:
-  learning_rate:
-    values: [0.0001, 0.001, 0.01]
   layer_norm:
     values: [True, False]
+  num_message_passing_step:
+    values: [4, 5, 6]
 command:
   - python3
   - ${program}

@@ -154,6 +154,7 @@ def _get_extra_metadata_as_dict(extra_metadata_string_list: list) -> dict:
   try:
     for item in extra_metadata_string_list:
       key, value = item.split("=")
+      key = key.replace('\"','') # NOTE(Dan Snider): bugfix for wandb
       metadata['extra.' + key] = value
   except:
     logging.error(
@@ -462,7 +463,7 @@ class Recorder:
         if self.existing_wandb_run:
           self.existing_wandb_run.finish()
         config = {'trial_idx': trial_idx}
-        self.existing_wandb_run = wandb_utils.setup(config=config, name=trial_idx)
+        self.existing_wandb_run = wandb_utils.setup(config=config)
 
     if self.wandb_enabled:
       wandb_utils.log(measurements)
