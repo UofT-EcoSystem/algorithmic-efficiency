@@ -1,5 +1,5 @@
 # WANDB_MODE=offline wandb sweep experiments/model_arch_ogbg/sweep_gnn_batch_norm.yaml
-# wandb agent danielsnider/mlc_held_out_gnn/agolsekd
+# wandb agent danielsnider/mlc_held_out_gnn/42b5iv05
 entity: danielsnider
 project: mlc_held_out_gnn
 name: sweep_gnn_batch_norm
