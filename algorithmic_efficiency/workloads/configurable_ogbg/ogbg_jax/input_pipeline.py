@@ -152,10 +152,10 @@ def _get_batch_iterator(dataset_iter, global_batch_size, num_shards=None):
       weights_shards = []
 
 
-def get_dataset_iter(split, data_rng, data_dir, global_batch_size):
+def get_dataset_iter(split, data_rng, data_dir, global_batch_size, repeat=True):
   ds = _load_dataset(
       split,
-      should_shuffle=(split == 'train'),
+      should_shuffle=(split == 'train' and repeat),
       data_rng=data_rng,
       data_dir=data_dir)
   return _get_batch_iterator(iter(ds), global_batch_size)

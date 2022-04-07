@@ -33,16 +33,19 @@ class OGBGWorkload(OGBG):
     num_message_passing_steps = int(extra_metadata.get('extra.ogbg_config.num_message_passing_steps', 5))
     activation = extra_metadata.get('extra.ogbg_config.activation_fn', 'relu')
     self._model = models.GNN(latent_dim=latent_dim, hidden_dims=hidden_dims, dropout_rate=dropout_rate, num_message_passing_steps=num_message_passing_steps, activation=activation)
+    self.batch_size = int(extra_metadata.get('extra.ogbg_config.batch_size', None))
 
   def _build_iterator(self,
                       data_rng: jax.random.PRNGKey,
                       split: str,
                       data_dir: str,
-                      batch_size: int):
+                      batch_size: int,
+                      repeat: bool = True):
     dataset_iter = input_pipeline.get_dataset_iter(split,
                                                    data_rng,
                                                    data_dir,
-                                                   batch_size)
+                                                   batch_size,
+                                                   repeat=repeat)
     if self._init_graphs is None:
       init_graphs, _, _ = next(dataset_iter)
       # Unreplicate the iterator that has the leading dim for pmapping.
@@ -53,8 +56,9 @@ class OGBGWorkload(OGBG):
                         data_rng: jax.random.PRNGKey,
                         split: str,
                         data_dir: str,
-                        batch_size: int):
-    return self._build_iterator(data_rng, split, data_dir, batch_size)
+                        batch_size: int,
+                        repeat: bool = True):
+    return self._build_iterator(data_rng, split, data_dir, batch_size, repeat=repeat)
 
   @property
   def param_shapes(self):
