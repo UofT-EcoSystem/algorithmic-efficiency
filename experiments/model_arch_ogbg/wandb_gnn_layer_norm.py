@@ -69,7 +69,7 @@ def main():
     '--submission_path=baselines/configurable_ogbg/ogbg_jax/submission.py',
     '--enable_wandb',
     # '--save_checkpoints',
-    '--data_dir=/FS1/dataset',
+    '--data_dir=/h/dans/tensorflow_datasets',
     f'--tuning_search_space={tuning_search_space}',
     f'--early_stopping_config={early_stopping_config}',
     f'--num_tuning_trials={config["num_trials"]}',
