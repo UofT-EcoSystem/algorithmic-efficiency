@@ -1,4 +1,7 @@
 {
-    "rotate": 10.0,
-    "flip": 1
-}
+  "fliplr": {},
+  "shift": {
+    "width_shift_max": 2,
+    "height_shift_max": 2
+  }
+} 
