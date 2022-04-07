@@ -8,7 +8,7 @@
 set -e # exit on error
 
 export WANDB_ENTITY=danielsnider
-export WANDB_PROJECT="mnist_batch_norm"
+export WANDB_PROJECT="mnist_batch_norm_2"
 export WANDB_NOTES=""
 # export WANDB_MODE="offline"
 
@@ -71,7 +71,7 @@ run_cmd () {
   iteration=$(echo $(( iteration + 1 )))
   EXPERIMENT_DIR="$LOGGING_DIR/batchnorm_$BATCH_NORM-activation_$ACTIVATION-width_$MODEL_WIDTH-depth_$MODEL_DEPTH-dropout_$DROPOUT_RATE-batch_$BATCH_SIZE/"
   mkdir -p $EXPERIMENT_DIR
-  export WANDB_NAME=$BATCH_NORM
+  export WANDB_NAME="$BATCH_NORM-depth$MODEL_DEPTH"
   set -x
   CUDA_VISIBLE_DEVICES=0 python3 submission_runner.py \
     --framework=jax \
