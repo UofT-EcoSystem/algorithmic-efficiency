@@ -106,7 +106,7 @@ flags.DEFINE_integer('num_tuning_trials',
                      20,
                      'The number of external hyperparameter trials to run.')
 flags.DEFINE_integer('percent_data_selection',
-    100, 'Percentage of training data that should be used in model training '\
+    100, 'Percentage of training data that should be used in model training '
       '(default 100).')
 flags.DEFINE_string(
     'logging_dir', None,
@@ -298,6 +298,7 @@ def train_once(workload: spec.Workload,
           hyperparameters=hyperparameters,
           input_batch=selected_train_input_batch,
           label_batch=selected_train_label_batch,
+          mask_batch=None,
           loss_type=workload.loss_type,
           optimizer_state=optimizer_state,
           eval_results=eval_results,
