@@ -90,7 +90,7 @@ def update_params(
     hyperparameters: spec.Hyperparamters,
     input_batch: spec.Tensor,
     label_batch: spec.Tensor,
-    mask_batch: Optional[spec.Tensor],
+    mask_batch: Optional[spec.Tensor],    
     # This will define the output activation via `output_activation_fn`.
     loss_type: spec.LossType,
     optimizer_state: spec.OptimizerState,
@@ -148,6 +148,6 @@ def data_selection(workload: spec.Workload,
   # del rng
 
   x = next(input_queue)
-  workload.apply_augmentations(x)
-  return x
+  return workload.apply_augmentations(x[0]), x[1]
+
   # return x['image'], x['label']
