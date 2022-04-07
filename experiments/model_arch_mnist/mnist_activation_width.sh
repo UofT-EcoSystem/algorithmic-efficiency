@@ -17,10 +17,10 @@ LOGGING_DIR='./experiments/batchnorm_checkpoints-2-batch_stats/logs'
 rm -rf $LOGGING_DIR
 mkdir -p $LOGGING_DIR
 
-BATCH_NORMS='affine-activation-batchnorm off'
-ACTIVATIONS='relu'
-MODEL_WIDTHS='100'
-MODEL_DEPTHS='3 6 12'
+BATCH_NORMS='off'
+ACTIVATIONS='relu gelu sigmoid hard_tanh'
+MODEL_WIDTHS='100 200'
+MODEL_DEPTHS='3'
 DROPOUT_RATES='0'
 BATCH_SIZES='1024'
 OPTIMIZER='adam'
