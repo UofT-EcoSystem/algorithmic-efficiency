@@ -45,7 +45,7 @@ class _Model(nn.Module):
     input_size = 28 * 28
     num_classes = 10
     x = x.reshape((x.shape[0], input_size))  # Flatten.
-    for _ in range(self.model_depth - 1):
+    for _ in range(self.model_depth):
       if self.batch_norm == 'off':
         x = nn.Dense(features=self.model_width, use_bias=True)(x)
         x = self.activation_fn(x)
@@ -77,10 +77,6 @@ class MnistWorkload(spec.Workload):
         'hard_tanh': jax.nn.hard_tanh,
         'gelu': jax.nn.gelu
     }
-    activation_fn = activitation_fn_map[extra_metadata.get(
-        'extra.mnist_config.activation_fn', 'relu')]
-    model_width = int(extra_metadata.get('extra.mnist_config.model_width', 128))
-    model_depth = int(extra_metadata.get('extra.mnist_config.model_depth', 1))
     self.dropout_rate = float(
         extra_metadata.get('extra.mnist_config.dropout_rate', 0))
     self.batch_size = int(
@@ -214,10 +210,11 @@ class MnistWorkload(spec.Workload):
 
   def init_model_fn(self, rng: spec.RandomState) -> spec.ModelInitState:
     init_val = jnp.ones((1, 28, 28, 1), jnp.float32)
-    initial_params = self._model.init(rng, init_val, train=True)['params']
+    variables = self._model.init(rng, init_val, train=True)
+    model_state, initial_params = variables.pop('params')
     self._param_shapes = jax.tree_map(lambda x: spec.ShapeTuple(x.shape),
                                       initial_params)
-    return initial_params, None
+    return initial_params, model_state
 
   # Keep this separate from the loss function in order to support optimizers
   # that use the logits.
@@ -248,18 +245,17 @@ class MnistWorkload(spec.Workload):
       model_state: spec.ModelAuxiliaryState, mode: spec.ForwardPassMode,
       rng: spec.RandomState,
       update_batch_norm: bool) -> Tuple[spec.Tensor, spec.ModelAuxiliaryState]:
-    del model_state
     del rng
     del update_batch_norm
     train = mode == spec.ForwardPassMode.TRAIN
     if train:
-      logits_batch, new_model_state = self._model.apply({'params': params},
+      logits_batch, new_model_state = self._model.apply({'params': params, **model_state},
                                       input_batch,
                                       mutable=['batch_stats'],
                                       train=train)
       return logits_batch, new_model_state
     else:
-      logits_batch = self._model.apply({'params': params},
+      logits_batch = self._model.apply({'params': params, **model_state},
                                       input_batch,
                                       mutable=False,
                                       train=train)

@@ -8,8 +8,7 @@
 set -e # exit on error
 
 export WANDB_ENTITY=danielsnider
-export WANDB_PROJECT=tests
-export WANDB_NAME="mnist_batch_norm"
+export WANDB_PROJECT="mnist_batch_norm"
 export WANDB_NOTES=""
 # export WANDB_MODE="offline"
 
@@ -20,8 +19,8 @@ mkdir -p $LOGGING_DIR
 
 BATCH_NORMS='affine-activation-batchnorm affine-batchnorm-activation off'
 ACTIVATIONS='relu'
-MODEL_WIDTHS='256'
-MODEL_DEPTHS='1'
+MODEL_WIDTHS='100'
+MODEL_DEPTHS='3'
 DROPOUT_RATES='0'
 BATCH_SIZES='1024'
 OPTIMIZER='adam'
@@ -72,8 +71,9 @@ run_cmd () {
   iteration=$(echo $(( iteration + 1 )))
   EXPERIMENT_DIR="$LOGGING_DIR/batchnorm_$BATCH_NORM-activation_$ACTIVATION-width_$MODEL_WIDTH-depth_$MODEL_DEPTH-dropout_$DROPOUT_RATE-batch_$BATCH_SIZE/"
   mkdir -p $EXPERIMENT_DIR
+  export WANDB_NAME=$BATCH_NORM
   set -x
-  python3 submission_runner.py \
+  CUDA_VISIBLE_DEVICES=0 python3 submission_runner.py \
     --framework=jax \
     --workload=configurable_mnist_jax \
     --submission_path=baselines/mnist/configurable_mnist_jax/submission.py \
