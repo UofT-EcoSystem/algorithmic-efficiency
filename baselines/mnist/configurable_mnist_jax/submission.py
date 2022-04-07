@@ -128,9 +128,9 @@ def update_params(
       reshaped_label_batch, jax_utils.replicate(optimizer_state), rng,
       jnp.arange(num_devices))
   steps_per_epoch = workload.num_train_examples // get_batch_size('mnist')
-  if (global_step + 1) % steps_per_epoch == 0:
-    # sync batch statistics across replicas once per epoch
-    new_model_state = workload.sync_batch_stats(new_model_state)
+  # if (global_step + 1) % steps_per_epoch == 0:  # commented due to error "KeyError: 'batch_stats'"
+  #   # sync batch statistics across replicas once per epoch
+  #   new_model_state = workload.sync_batch_stats(new_model_state)
   return (jax_utils.unreplicate(new_optimizer_state),
           jax_utils.unreplicate(updated_params),
           jax_utils.unreplicate(new_model_state))
