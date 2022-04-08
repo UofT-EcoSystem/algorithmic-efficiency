@@ -279,7 +279,6 @@ def train_once(workload: spec.Workload,
       FLAGS.early_stopping_config).early_stop_check
 
   global_start_time = time.time()
-  num_checkpoints = 0
 
   logging.info('Starting training loop.')
   while (is_time_remaining and not goal_reached and not training_complete and

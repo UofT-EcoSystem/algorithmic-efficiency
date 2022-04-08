@@ -15,6 +15,7 @@ if [ -d $SAVE_DIR ]; then
 fi
 
 mkdir -p $SAVE_DIR
+cp $AUG_CONFIG $SAVE_DIR/
 
 python submission_runner.py \
   --framework=jax \
@@ -30,6 +31,11 @@ python submission_runner.py \
   --cp_step="epoch" \
   --cp_freq=1 \
   --extra_metadata="cifar10.target_value=$TARGET_VALUE" \
+  --extra_metadata='cifar10.aug_fliplr=0.5' \
+  --extra_metadata='cifar10.aug_width_shift_max=2' \
+  --extra_metadata='cifar10.aug_height_shift_max=2' \
   --augments=$AUG_CONFIG \
+
+python3 -c "from algorithmic_efficiency import logging_utils; logging_utils.concatenate_csvs('$SAVE_DIR')"
 
 
