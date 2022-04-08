@@ -64,6 +64,10 @@ WORKLOADS = {
       'workload_path': BASE_WORKLOADS_DIR + 'cifar10/cifar10_jax/augmented/workload.py',
       'workload_class_name': 'Custom_CIFAR10Workload',
     },
+    'cifar10_jax_augmentation': {
+        'workload_path': BASE_WORKLOADS_DIR + 'cifar10/cifar10_jax/augmented/workload.py',
+        'workload_class_name': 'CIFAR10Augmentation'
+    },  
     'imagenet_jax': {
         'workload_path':
             BASE_WORKLOADS_DIR + 'imagenet/imagenet_jax/workload.py',
@@ -279,7 +283,6 @@ def train_once(workload: spec.Workload,
       FLAGS.early_stopping_config).early_stop_check
 
   global_start_time = time.time()
-  num_checkpoints = 0
 
   logging.info('Starting training loop.')
   while (is_time_remaining and not goal_reached and not training_complete and
