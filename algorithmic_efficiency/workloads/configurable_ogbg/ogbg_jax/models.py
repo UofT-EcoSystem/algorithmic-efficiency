@@ -25,7 +25,7 @@ def _make_mlp(hidden_dims, dropout, activation_fn, layer_norm):
     x = inputs
     for dim in hidden_dims:
       x = nn.Dense(features=dim)(x)
-      if layer_norm:
+      if layer_norm == 'True':
         x = nn.LayerNorm()(x)
       x = activation_fn(x)
       x = dropout(x)

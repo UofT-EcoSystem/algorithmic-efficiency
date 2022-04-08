@@ -486,6 +486,10 @@ class Recorder:
 
     try:
       freq, unit = FLAGS.eval_frequency_override.split(' ')
+      freq = freq.replace('"', '') #TEMP DELETE use bash launch script not python launch script
+      freq = freq.replace("'", '') #TEMP DELETE
+      unit = unit.replace('"', '') #TEMP DELETE use bash launch script not python launch script
+      unit = unit.replace("'", '') #TEMP DELETE
       freq = int(freq)
       assert (unit in ['epoch', 'step'])
     except:

@@ -2,6 +2,7 @@ import datetime
 import sys
 import json
 import subprocess
+from absl import logging
 
 def write_tuning_search_space(config):
   params = {
@@ -56,7 +57,6 @@ def main():
 
   time_now  = datetime.datetime.now().strftime('%m_%d_%Y_%H_%M_%S')
   experiment_dir = f'{config["logging_dir"]}/{time_now}-layer_norm_{config["layer_norm"]}-learning_rate{config["learning_rate"]}-activation_{config["activation"]}-latent_{config["latent_dim"]}-hidden_{config["hidden_dim"]}-num_message_{config["num_message_passing_step"]}-dropout_{config["dropout_rate"]}-batch_{config["batch_size"]}/'
-  name = f'layernorm_{config["layer_norm"]}'
 
   tuning_search_space = write_tuning_search_space(config)
   early_stopping_config = write_early_stopping(config)
@@ -74,9 +74,8 @@ def main():
     f'--early_stopping_config={early_stopping_config}',
     f'--num_tuning_trials={config["num_trials"]}',
     f'--logging_dir={experiment_dir}',
-    f'--eval_frequency_override={config["eval_frequency_override"]}',
-    f'--extra_metadata="wandb.name={name}',
-    f'--extra_metadata="ogbg_config.max_allowed_runtime_sec={config["max_allowed_runtime_sec"]}',
+    f'--eval_frequency_override=\'{config["eval_frequency_override"]}\'',
+    f'--extra_metadata="ogbg_config.max_allowed_runtime_sec={config["max_allowed_runtime_sec"]}"',
     f'--extra_metadata="ogbg_config.target_value={config["target_value"]}"',
     f'--extra_metadata="ogbg_config.activation_fn={config["activation"]}"',
     f'--extra_metadata="ogbg_config.dropout_rate={config["dropout_rate"]}"',
@@ -87,6 +86,7 @@ def main():
     f'--extra_metadata="ogbg_config.layer_norm={config["layer_norm"]}"',
   ]
   print(" ".join(cmd))
+  logging.info(" ".join(cmd))
   subprocess.run(cmd)
 
 if __name__ == '__main__':

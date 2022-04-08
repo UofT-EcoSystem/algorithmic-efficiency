@@ -8,9 +8,9 @@
 # wandb sweep /ssd003/home/dans/algorithmic-efficiency/experiments/model_arch_ogbg/sweep_gnn_model_size.yaml
 # # copy sweep ID
 # cd ~/slurm_logs-norm
-# for run in {1..6}; do
-#   sbatch run.sh
-# done
+for run in {1..6}; do
+  sbatch run.sh
+done
 #
 # build 1 large JSON file
 # jq -s 'flatten' /h/dans/algorithmic-efficiency/logs/gnn_model_size_first_slurm/*/**/trial_**/*.json > slurm_gnn_size_merged.json
