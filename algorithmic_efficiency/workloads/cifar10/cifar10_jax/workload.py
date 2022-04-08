@@ -15,6 +15,7 @@ from algorithmic_efficiency.augmentation import ImageAugmenter
 from absl import logging
 
 FLAGS = flags.FLAGS
+
 class VGGblock(nn.Module):
   'A VGG Block'
 
@@ -61,23 +62,16 @@ class CIFAR10Workload(CIFAR10):
                      split: str,
                      data_dir: str,
                      batch_size):
-    ds = tfds.load('cifar10', split=split)
+
+    if FLAGS.percent_data_selection < 100 and split == 'train':
+      split = split + '[{pct}%:]'.format(pct=FLAGS.percent_data_selection)
+      
+    ds = tfds.load('cifar10', split=split, shuffle_files=True)
     ds = ds.cache()
     ds = ds.map(lambda x: (self._normalize(x['image']), x['label'], None))
     if split == 'train':
       ds = ds.shuffle(1024, seed=data_rng[0])
       ds = ds.repeat()
-<<<<<<< HEAD
-    ds = ds.batch(batch_size)
-
-    if FLAGS.augments is not None:
-      data_rng, aug_rng = jax.random.split()
-      aug = ImageAugmenter(FLAGS.augments, rng=aug_rng)
-      ds = ds.map(
-        lambda image_batch, label_batch, mask_batch: 
-        (aug.apply_augmentations(image_batch), label_batch, mask_batch)
-        ) # Augmentations are applied to batches not individual samples
-=======
 
     # Must drop remainder so that batch size is not None for augmentations
     ds = ds.batch(batch_size, drop_remainder=True) 
@@ -91,7 +85,6 @@ class CIFAR10Workload(CIFAR10):
         (aug.apply_augmentations(im_batch), l_batch, m_batch)
       ) # Apply augmentations to whole batch
     
->>>>>>> 8057e0b47b7e39f46c1048e5a2ace0887391d0fd
     return tfds.as_numpy(ds)
 
   def build_input_queue(self,
