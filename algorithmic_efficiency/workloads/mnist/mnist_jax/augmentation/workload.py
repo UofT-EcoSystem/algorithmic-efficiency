@@ -14,7 +14,7 @@ import tensorflow_addons as tfa
 
 from algorithmic_efficiency import random_utils as prng
 from algorithmic_efficiency.workloads.mnist.mnist_jax.workload import MnistWorkload
-from absl import flags
+from absl import flags, logging
 
 class MnistAugmentation(MnistWorkload):
 

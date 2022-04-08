@@ -30,7 +30,7 @@ def concatenate_csvs(path: str):
   if input_csvs:
     df = pd.read_csv(input_csvs.pop())
     for file in input_csvs:
-      df = df.append(pd.read_csv(file))
+      df = pd.concat([df, pd.read_csv(file)])
     output_filepath = os.path.join(path, 'all_measurements.csv')
     df.to_csv(output_filepath, index=False)
 
@@ -486,5 +486,5 @@ class Recorder:
       df = pd.read_csv(csv_path)
     else:
       df = pd.DataFrame()  # Initialize empty dataframe if no data is saved yet
-    df = df.append(data, ignore_index=True)
+    df = pd.concat([df, pd.DataFrame(data, index=[0])])
     df.to_csv(csv_path, index=False)

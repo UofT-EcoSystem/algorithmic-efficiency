@@ -147,6 +147,5 @@ def data_selection(workload: spec.Workload,
   del hyperparameters
   del global_step
   del rng
-  x = next(input_queue)
-  return x[0],x[1]
+  return next(input_queue)
 

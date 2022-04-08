@@ -1,6 +1,8 @@
 from algorithmic_efficiency import random_utils as prng
-
 from algorithmic_efficiency import spec
+from algorithmic_efficiency.logging_utils import _get_extra_metadata_as_dict
+from absl import flags
+FLAGS = flags.FLAGS
 
 
 class CIFAR10(spec.Workload):
@@ -10,7 +12,11 @@ class CIFAR10(spec.Workload):
 
   @property
   def target_value(self):
-    return 0.65
+    if FLAGS.extra_metadata is not None:
+      meta = _get_extra_metadata_as_dict(FLAGS.extra_metadata)
+      return float(meta.get('extra.cifar10.target_value', 0.65))
+    else:
+      return 0.65
 
   @property
   def loss_type(self):

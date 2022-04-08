@@ -10,7 +10,11 @@ import tensorflow_datasets as tfds
 
 from algorithmic_efficiency import spec
 from algorithmic_efficiency.workloads.cifar10.workload import CIFAR10
+from absl import flags
+from algorithmic_efficiency.augmentation import ImageAugmenter
+from absl import logging
 
+FLAGS = flags.FLAGS
 
 class VGGblock(nn.Module):
   'A VGG Block'
@@ -58,13 +62,29 @@ class CIFAR10Workload(CIFAR10):
                      split: str,
                      data_dir: str,
                      batch_size):
-    ds = tfds.load('cifar10', split=split)
+
+    if FLAGS.percent_data_selection < 100 and split == 'train':
+      split = split + '[{pct}%:]'.format(pct=FLAGS.percent_data_selection)
+      
+    ds = tfds.load('cifar10', split=split, shuffle_files=True)
     ds = ds.cache()
     ds = ds.map(lambda x: (self._normalize(x['image']), x['label'], None))
     if split == 'train':
       ds = ds.shuffle(1024, seed=data_rng[0])
       ds = ds.repeat()
-    ds = ds.batch(batch_size)
+
+    # Must drop remainder so that batch size is not None for augmentations
+    ds = ds.batch(batch_size, drop_remainder=True) 
+
+    if FLAGS.augments is not None:
+      logging.info('Augmenting data with: %s' % FLAGS.augments)
+      data_rng, aug_rng = jax.random.split(data_rng)
+      aug = ImageAugmenter(FLAGS.augments, rng=aug_rng)
+      ds = ds.map(
+        lambda im_batch, l_batch, m_batch:
+        (aug.apply_augmentations(im_batch), l_batch, m_batch)
+      ) # Apply augmentations to whole batch
+    
     return tfds.as_numpy(ds)
 
   def build_input_queue(self,
