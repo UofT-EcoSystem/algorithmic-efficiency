@@ -8,9 +8,9 @@
 # wandb sweep /ssd003/home/dans/algorithmic-efficiency/experiments/model_arch_ogbg/sweep_gnn_model_size.yaml
 # # copy sweep ID
 # cd ~/slurm_logs-norm
-for run in {1..6}; do
-  sbatch run.sh
-done
+# for run in {1..6}; do
+#   sbatch run.sh
+# done
 #
 # build 1 large JSON file
 # jq -s 'flatten' /h/dans/algorithmic-efficiency/logs/gnn_model_size_first_slurm/*/**/trial_**/*.json > slurm_gnn_size_merged.json
@@ -33,4 +33,4 @@ module load jax0.2.24-cuda11.0-python3.8_jupyter
 source ~/venv2/bin/activate
 cd ~/algorithmic-efficiency
 wandb login ab8a559717268962dc374078301ec56912d60370
-exec wandb agent --count 1 danielsnider/mlc_held_out_gnn/42b5iv05 # copy sweep ID here
+exec wandb agent --count 1 danielsnider/mlc_held_out_gnn/k3eymgep # copy sweep ID here
