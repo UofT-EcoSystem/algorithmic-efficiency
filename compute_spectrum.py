@@ -7,6 +7,9 @@ sys.path.append(os.path.join(os.getcwd(),"spectral-density"))
 #         sys.path.append(module_dir)
 # print(sys.path)
 
+# suppress tensorflow warnings
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+
 import jax
 import jax.numpy as jnp
 import jax.lax as lax
@@ -35,6 +38,9 @@ import lanczos
 
 def main(args):
 
+    # test devices
+    print(jax.devices())
+    print(jnp.ones(3).device_buffer.device())
     assert os.path.isfile(args.metadata_fp)
     with open(args.metadata_fp,"r") as json_file:
         metadata_d = json.load(json_file)
@@ -45,7 +51,7 @@ def main(args):
     for step in args.steps:
         print(f">>> step = {step}")
         params, model_state = load_params_model_state(args.checkpoint_dp,step)
-        print(model_state)
+        print("model_state",model_state)
         tridiags, vecses, density, grids = compute_eigvals_density(args,wl,batches_list,params,model_state)
         plot_density(grids,density)
 
