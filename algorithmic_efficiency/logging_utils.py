@@ -19,7 +19,7 @@ from algorithmic_efficiency import wandb_utils
 FLAGS = flags.FLAGS
 
 
-def concatenate_csvs(path: str):
+def concatenate_csvs(path: str, output_name='all_measurements.csv'):
   """Join all files named "measurements.csv" in a given folder recursively.
 
   In this logging module, one "measurements.csv" is produced at the granularity
@@ -32,7 +32,7 @@ def concatenate_csvs(path: str):
     df = pd.read_csv(input_csvs.pop())
     for file in input_csvs:
       df = df.append(pd.read_csv(file))
-    output_filepath = os.path.join(path, 'all_measurements.csv')
+    output_filepath = os.path.join(path, output_name)
     df.to_csv(output_filepath, index=False)
 
 
