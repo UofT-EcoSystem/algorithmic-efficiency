@@ -10,8 +10,11 @@ import tensorflow_datasets as tfds
 
 from algorithmic_efficiency import spec
 from algorithmic_efficiency.workloads.cifar10.workload import CIFAR10
+from absl import flags
+from algorithmic_efficiency.augmentation import ImageAugmenter
+from absl import logging
 
-
+FLAGS = flags.FLAGS
 class VGGblock(nn.Module):
   'A VGG Block'
 
@@ -64,7 +67,19 @@ class CIFAR10Workload(CIFAR10):
     if split == 'train':
       ds = ds.shuffle(1024, seed=data_rng[0])
       ds = ds.repeat()
-    ds = ds.batch(batch_size)
+
+    # Must drop remainder so that batch size is not None for augmentations
+    ds = ds.batch(batch_size, drop_remainder=True) 
+
+    if FLAGS.augments is not None:
+      logging.info('Augmenting data with: %s' % FLAGS.augments)
+      data_rng, aug_rng = jax.random.split(data_rng)
+      aug = ImageAugmenter(FLAGS.augments, rng=aug_rng)
+      ds = ds.map(
+        lambda im_batch, l_batch, m_batch:
+        (aug.apply_augmentations(im_batch), l_batch, m_batch)
+      ) # Apply augmentations to whole batch
+    
     return tfds.as_numpy(ds)
 
   def build_input_queue(self,

@@ -283,7 +283,6 @@ def train_once(workload: spec.Workload,
       FLAGS.early_stopping_config).early_stop_check
 
   global_start_time = time.time()
-  num_checkpoints = 0
 
   logging.info('Starting training loop.')
   while (is_time_remaining and not goal_reached and not training_complete and
@@ -293,7 +292,8 @@ def train_once(workload: spec.Workload,
     start_time = time.time()
 
     (selected_train_input_batch,
-     selected_train_label_batch) = data_selection(workload,
+     selected_train_label_batch,
+     selected_train_mask_batch) = data_selection(workload,
                                                  input_queue,
                                                  optimizer_state,
                                                  model_params,
@@ -310,7 +310,7 @@ def train_once(workload: spec.Workload,
           hyperparameters=hyperparameters,
           input_batch=selected_train_input_batch,
           label_batch=selected_train_label_batch,
-          mask_batch=None,
+          mask_batch=selected_train_mask_batch,
           loss_type=workload.loss_type,
           optimizer_state=optimizer_state,
           eval_results=eval_results,
