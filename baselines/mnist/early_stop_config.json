@@ -1,0 +1,9 @@
+{
+  "metric_name": "loss",
+  "min_delta": 0,
+  "patience": 10,
+  "min_steps": 0,
+  "max_steps": 5800,
+  "mode": "min",
+  "baseline": null
+}

@@ -486,5 +486,5 @@ class Recorder:
       df = pd.read_csv(csv_path)
     else:
       df = pd.DataFrame()  # Initialize empty dataframe if no data is saved yet
-    df = df.append(data, ignore_index=True)
+    df = pd.concat([df, pd.DataFrame(data, index=[0])])
     df.to_csv(csv_path, index=False)

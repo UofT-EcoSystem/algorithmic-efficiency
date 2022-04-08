@@ -10,6 +10,8 @@ import tensorflow_datasets as tfds
 
 from algorithmic_efficiency import spec
 from algorithmic_efficiency.workloads.cifar10.workload import CIFAR10
+from submission_runner import FLAGS
+from algorithmic_efficiency.augmentation import ImageAugmenter
 
 
 class VGGblock(nn.Module):
@@ -65,6 +67,14 @@ class CIFAR10Workload(CIFAR10):
       ds = ds.shuffle(1024, seed=data_rng[0])
       ds = ds.repeat()
     ds = ds.batch(batch_size)
+
+    if FLAGS.augments is not None:
+      data_rng, aug_rng = jax.random.split()
+      aug = ImageAugmenter(FLAGS.augments, rng=aug_rng)
+      ds = ds.map(
+        lambda image_batch, label_batch, mask_batch: 
+        (aug.apply_augmentations(image_batch), label_batch, mask_batch)
+        ) # Augmentations are applied to batches not individual samples
     return tfds.as_numpy(ds)
 
   def build_input_queue(self,
