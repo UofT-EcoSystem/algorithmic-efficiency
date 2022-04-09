@@ -8,19 +8,19 @@
 set -e # exit on error
 
 export WANDB_ENTITY=danielsnider
-export WANDB_PROJECT="mnist_batch_norm_2"
+export WANDB_PROJECT="mnist_activation"
 export WANDB_NOTES=""
 # export WANDB_MODE="offline"
 
 
-LOGGING_DIR='./experiments/batchnorm_checkpoints-2-batch_stats/logs'
+LOGGING_DIR='./experiments/mnist_activation/logs'
 rm -rf $LOGGING_DIR
 mkdir -p $LOGGING_DIR
 
-BATCH_NORMS='affine-activation-batchnorm off'
-ACTIVATIONS='relu'
-MODEL_WIDTHS='100'
-MODEL_DEPTHS='3 5 7'
+BATCH_NORMS='off'
+ACTIVATIONS='relu gelu sigmoid hard_tanh'
+MODEL_WIDTHS='100 200'
+MODEL_DEPTHS='3'
 DROPOUT_RATES='0'
 BATCH_SIZES='1024'
 OPTIMIZER='adam'
@@ -38,7 +38,7 @@ cat <<EOF > adam_mnist_tuning_search_space.json
 }
 EOF
 
-MAX_ALLOWED_RUNTIME_SEC='900000'
+MAX_ALLOWED_RUNTIME_SEC='3000'
 EARLY_STOPPING_CONFIG='mnist_early_stopping_config.json'
 cat <<EOF > mnist_early_stopping_config.json
 {
@@ -46,7 +46,7 @@ cat <<EOF > mnist_early_stopping_config.json
   "min_delta": 0,
   "patience": 99,
   "min_steps": 58,
-  "max_steps": 90000,
+  "max_steps": 2000,
   "mode": "min",
   "baseline": null
 }
@@ -71,9 +71,9 @@ run_cmd () {
   iteration=$(echo $(( iteration + 1 )))
   EXPERIMENT_DIR="$LOGGING_DIR/batchnorm_$BATCH_NORM-activation_$ACTIVATION-width_$MODEL_WIDTH-depth_$MODEL_DEPTH-dropout_$DROPOUT_RATE-batch_$BATCH_SIZE/"
   mkdir -p $EXPERIMENT_DIR
-  export WANDB_NAME="$BATCH_NORM-depth$MODEL_DEPTH"
+  export WANDB_NAME="activation_$ACTIVATION-width_$MODEL_WIDTH-depth_$MODEL_DEPTH"
   set -x
-  CUDA_VISIBLE_DEVICES=0 python3 submission_runner.py \
+  CUDA_VISIBLE_DEVICES=1 python3 submission_runner.py \
     --framework=jax \
     --workload=configurable_mnist_jax \
     --submission_path=baselines/mnist/configurable_mnist_jax/submission.py \
@@ -133,11 +133,3 @@ done
 echo "[INFO $(date +"%d-%I:%M%p")] Finished."
 
 exit 0
-
-for FILE in ./experiments/batchnorm_checkpoints/logs/*/**/trial_*/*.json
-do
-    global_step=$(cat $FILE | jq -r '.global_step')
-    accuracy=$(cat $FILE | jq -r '.accuracy')
-    loss=$(cat $FILE | jq -r '.loss')
-    echo "$global_step $accuracy $loss $FILE"
-done

@@ -14,11 +14,12 @@ import pandas as pd
 import psutil
 
 from algorithmic_efficiency import spec
+from algorithmic_efficiency import wandb_utils
 
 FLAGS = flags.FLAGS
 
 
-def concatenate_csvs(path: str):
+def concatenate_csvs(path: str, output_name='all_measurements.csv'):
   """Join all files named "measurements.csv" in a given folder recursively.
 
   In this logging module, one "measurements.csv" is produced at the granularity
@@ -31,7 +32,7 @@ def concatenate_csvs(path: str):
     df = pd.read_csv(input_csvs.pop())
     for file in input_csvs:
       df = df.append(pd.read_csv(file))
-    output_filepath = os.path.join(path, 'all_measurements.csv')
+    output_filepath = os.path.join(path, output_name)
     df.to_csv(output_filepath, index=False)
 
 
@@ -153,6 +154,9 @@ def _get_extra_metadata_as_dict(extra_metadata_string_list: list) -> dict:
   try:
     for item in extra_metadata_string_list:
       key, value = item.split("=")
+      key = key.replace('\"','') # NOTE(Dan Snider): bugfix for wandb
+      value = value.replace('\"','') # NOTE(Dan Snider): bugfix for wandb
+      value = value.replace('"','') # NOTE(Dan Snider): bugfix for wandb
       metadata['extra.' + key] = value
   except:
     logging.error(
@@ -232,7 +236,8 @@ class Recorder:
                submission_path: str,
                tuning_ruleset: str,
                tuning_search_space_path: Optional[str] = None,
-               num_tuning_trials: Optional[int] = None):
+               num_tuning_trials: Optional[int] = None,
+               wandb_enabled: Optional[bool] = False):
     self.workload_name = workload_name
     self.workload = workload
     self.logging_dir = logging_dir
@@ -240,7 +245,10 @@ class Recorder:
     self.tuning_ruleset = tuning_ruleset
     self.tuning_search_space_path = tuning_search_space_path
     self.num_tuning_trials = num_tuning_trials
+    self.wandb_enabled = wandb_enabled
+    self.existing_wandb_run = None
     self.status = 'INCOMPLETE'
+    self.last_trial_idx = None
     self.last_epoch_evaluated = None
     self.workload_log_dir = os.path.join(self.logging_dir, self.workload_name)
     if os.path.isdir(self.workload_log_dir):
@@ -445,14 +453,29 @@ class Recorder:
         workload, hyperparameters, trial_idx, global_step, batch_size,
         latest_eval_result, global_start_time, accumulated_submission_time,
         goal_reached, is_time_remaining, training_complete, early_stop)
-
-    # Save to CSV file
     trial_output_path = os.path.join(self.workload_log_dir,
                                      'trial_' + str(trial_idx))
-    os.makedirs(trial_output_path, exist_ok=True)
+
+    if trial_idx != self.last_trial_idx:
+      # this is a new trial
+      self.last_trial_idx = trial_idx
+      os.makedirs(trial_output_path, exist_ok=True)
+
+      if self.wandb_enabled:
+        if self.existing_wandb_run:
+          self.existing_wandb_run.finish()
+        config = {'trial_idx': trial_idx}
+        self.existing_wandb_run = wandb_utils.setup(config=config)
+
+    if self.wandb_enabled:
+      wandb_utils.log(measurements)
+
+    # Save to CSV file
     csv_path = os.path.join(trial_output_path, 'measurements.csv')
     logging.info(f'Recording measurements to: {csv_path}')
     self._append_to_csv(measurements, csv_path)
+
+
 
   def check_eval_frequency_override(self, workload: spec.Workload,
                                     global_step: int, batch_size: int):
@@ -463,6 +486,10 @@ class Recorder:
 
     try:
       freq, unit = FLAGS.eval_frequency_override.split(' ')
+      freq = freq.replace('"', '') #TEMP DELETE use bash launch script not python launch script
+      freq = freq.replace("'", '') #TEMP DELETE
+      unit = unit.replace('"', '') #TEMP DELETE use bash launch script not python launch script
+      unit = unit.replace("'", '') #TEMP DELETE
       freq = int(freq)
       assert (unit in ['epoch', 'step'])
     except:

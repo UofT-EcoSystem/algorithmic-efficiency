@@ -51,7 +51,7 @@ def main(args):
     for step in args.steps:
         print(f">>> step = {step}")
         params, model_state = load_params_model_state(args.checkpoint_dp,step)
-        print("model_state",model_state)
+        print("model_state",not(model_state is None))
         tridiags, vecses, density, grids = compute_eigvals_density(args,wl,batches_list,params,model_state)
         plot_density(grids,density)
 
@@ -221,7 +221,7 @@ def compute_metrics(tridiags,vecses,density,grids):
 
 def plot_density(grids, density, label=None):
     plt.semilogy(grids, density, label=label)
-    plt.ylim(1e-10, 1e2)
+    # plt.ylim(1e-10, 1e2)
     plt.ylabel("Density")
     plt.xlabel("Eigenvalue")
     if not (label is None):
