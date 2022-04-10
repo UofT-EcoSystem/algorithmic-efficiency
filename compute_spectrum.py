@@ -13,17 +13,17 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import jax
 import jax.numpy as jnp
 import jax.lax as lax
-from flax import linen as nn
-from flax.training import train_state
-import numpy as np
-import tensorflow_datasets as tfds
-from typing import Any, Callable, Sequence, Optional
-import dill
+from jax.config import config
+from jax.tree_util import tree_map
+
 import json
-import importlib
 import time
 import matplotlib.pyplot as plt
 import argparse
+import glob
+from tqdm import tqdm
+from pprint import pprint
+import wandb
 
 import submission_runner
 from submission_runner import FLAGS, _import_workload, WORKLOADS
@@ -34,27 +34,73 @@ from algorithmic_efficiency.workloads.mnist.configurable_mnist_jax.workload impo
 import density as density_lib
 import hessian_computation
 import lanczos
+import metrics
 
+run_name_to_exp = {
+    "act_gelu_100": "activation/batchnorm_off-activation_gelu-width_100-depth_3-dropout_0-batch_1024",
+    "act_gelu_200": "activation/batchnorm_off-activation_gelu-width_200-depth_3-dropout_0-batch_1024",
+    "act_htanh_100": "activation/batchnorm_off-activation_hard_tanh-width_100-depth_3-dropout_0-batch_1024",
+    "act_htanh_200": "activation/batchnorm_off-activation_hard_tanh-width_200-depth_3-dropout_0-batch_1024",
+    "act_relu_100": "activation/batchnorm_off-activation_relu-width_100-depth_3-dropout_0-batch_1024",
+    "act_relu_200": "activation/batchnorm_off-activation_relu-width_200-depth_3-dropout_0-batch_1024",
+    "act_sigmoid_100": "activation/batchnorm_off-activation_sigmoid-width_100-depth_3-dropout_0-batch_1024",
+    "act_sigmoid_200": "activation/batchnorm_off-activation_sigmoid-width_200-depth_3-dropout_0-batch_1024",
+    "bn_on_3": "batchnorm/batchnorm_affine-activation-batchnorm-activation_relu-width_100-depth_3-dropout_0-batch_1024",
+    "bn_on_5": "batchnorm/batchnorm_affine-activation-batchnorm-activation_relu-width_100-depth_5-dropout_0-batch_1024",
+    "bn_on_7": "batchnorm/batchnorm_affine-activation-batchnorm-activation_relu-width_100-depth_7-dropout_0-batch_1024",
+    "bn_off_3": "batchnorm/batchnorm_off-activation_relu-width_100-depth_3-dropout_0-batch_1024",
+    "bn_off_5": "batchnorm/batchnorm_off-activation_relu-width_100-depth_5-dropout_0-batch_1024",
+    "bn_off_7": "batchnorm/batchnorm_off-activation_relu-width_100-depth_7-dropout_0-batch_1024",
+}
 
 def main(args):
 
-    # test devices
+    exp_dp = os.path.join(args.base_dp,run_name_to_exp[args.run_name])
+    assert os.path.isdir(exp_dp), exp_dp
+    checkpoint_dp = os.path.join(exp_dp,"configurable_mnist_jax",f"trial_{args.trial}","checkpoints")
+    assert os.path.isdir(checkpoint_dp), checkpoint_dp
+    metadata_fp = os.path.join(exp_dp,"configurable_mnist_jax",f"trial_{args.trial}","metadata.json")
+    assert os.path.isfile(metadata_fp), metadata_fp
+    args.checkpoint_dp = checkpoint_dp
+    args.metadata_fp = metadata_fp
+    # set up wandb
+    run = wandb.init(
+        project=args.project_name,
+        name=f"{args.run_name}_trial_{args.trial}",
+        config=vars(args),
+        group=args.run_name,
+        mode=args.wandb_mode,
+        dir=args.wandb_meta_dp
+    )
+    # check jax stuff
+    if args.precision == "double":
+        config.update("jax_enable_x64", True)
     print(jax.devices())
     print(jnp.ones(3).device_buffer.device())
-    assert os.path.isfile(args.metadata_fp)
+    # load
     with open(args.metadata_fp,"r") as json_file:
         metadata_d = json.load(json_file)
     set_up_flags(metadata_d)
     wl = set_up_workload(metadata_d)
     batches_list = get_batches_list(args,wl)
-    # TODO: scan for multiple checkpoints
-    for step in args.steps:
+    checkpoint_names = glob.glob(os.path.join(args.checkpoint_dp,"checkpoint_*"))
+    all_steps = sorted([int(os.path.basename(name)[len("checkpoint_"):]) for name in checkpoint_names])
+    if args.steps is None:
+        steps = all_steps
+    else:
+        steps = [step for step in args.steps if step in all_steps]
+    print(f">>> total num steps = {len(steps)}")
+    for step in steps:
         print(f">>> step = {step}")
-        params, model_state = load_params_model_state(args.checkpoint_dp,step)
+        params, model_state = load_params_model_state(args,step)
         print("model_state",not(model_state is None))
-        tridiags, vecses, density, grids = compute_eigvals_density(args,wl,batches_list,params,model_state)
-        plot_density(grids,density)
-
+        spec_d = compute_eigvals_density(args,wl,batches_list,params,model_state)
+        # plot_density(grids,density)
+        metric_d = compute_metrics(spec_d)
+        pprint(metric_d)
+        metric_d["chkpt_step"] = step
+        wandb.log(metric_d,commit=True)
+    run.finish()
 
 def set_up_flags(metadata_d):
     workload = metadata_d["workload"]
@@ -84,11 +130,15 @@ def set_up_workload(metadata_d):
     return wl
 
 
-def load_params_model_state(checkpoint_dp,step):
-    assert os.path.isdir(checkpoint_dp)
-    checkpoint = load_checkpoint(checkpoint_dp,prefix="checkpoint_",step=step)
+def load_params_model_state(args,step):
+    assert os.path.isdir(args.checkpoint_dp)
+    checkpoint = load_checkpoint(args.checkpoint_dp,prefix="checkpoint_",step=step)
     params = checkpoint["params"]
     model_state = checkpoint["model_state"]
+    if args.precision == "double":
+        params = tree_map(lambda p: p.astype(jnp.float64),params)
+        if not (model_state is None):
+            model_state = tree_map(lambda p: p.astype(jnp.float64),model_state)
     return params, model_state
 
 
@@ -173,15 +223,7 @@ def compute_eigvals_density(args,wl,batches_list,params,model_state):
 
     # test it out
     test_batch = batches_list[0]
-    # _params, _ = wl.init_model_fn(dummy_key)
-    # import pdb; pdb.set_trace()
-    # # un-pmap
-    # _params = jax.tree_map(lambda x: x[0], _params)
-    # model_fp = "/home/adamo/Downloads/gnn_checkpoints/model.pkl"
-    # model = dill.load(open(model_fp,"rb"))
-    # model.apply({'params': params},test_batch[0],rngs={'dropout': dummy_key},train=True)
     print(lax.stop_gradient(loss(params,test_batch)))
-    # print(lax.stop_gradient(loss(_params,test_batch)))
 
     order = args.order
     num_samples = args.num_samples
@@ -197,26 +239,49 @@ def compute_eigvals_density(args,wl,batches_list,params,model_state):
     hvp_cl(2*jnp.ones(num_params)).block_until_ready() # second+ call will be much faster
     end = time.time()
     print("hvp compute time: {}".format(end-start))
+    print(f"estimated time = {(end-start)*order*num_samples}")
 
     rng = jax.random.PRNGKey(420420)
     rngs = jax.random.split(rng,num=num_samples+1)
     rng = rngs[0]
     start = time.time()
     tridiags, vecses = [], []
-    for i in range(num_samples):
+    for i in tqdm(range(num_samples)):
         tridiag, vecs = lanczos.lanczos_alg(hvp_cl, num_params, order, rngs[i+1])
         tridiags.append(tridiag)
         vecses.append(vecs)
     end = time.time()
     print("Lanczos time: {}".format(end-start)) # this should be ~ num_samples * order * hvp compute time
-    density, grids = density_lib.tridiag_to_density(tridiags, grid_len=10000, sigma_squared=1e-5)
-    
-    return tridiags, vecses, density, grids
+    vals, _, vecs = density_lib.tridiag_to_eigv(tridiags, get_eig_vecs=True)
+    density, grids = density_lib.tridiag_to_density(tridiags, grid_len=args.grid_len, sigma_squared=args.sigma_squared)
+    out_d = {
+        "vals": vals,
+        "vecs": vecs,
+        "density": density,
+        "grids": grids
+    }
+    return out_d
 
 
-def compute_metrics(tridiags,vecses,density,grids):
+def compute_metrics(spec_d):
 
-    pass
+    l1_energy_pos, l1_energy_neg = metrics.l1_energy(spec_d["density"],spec_d["grids"])
+    max_eig_val = metrics.max_eig_val(spec_d["vals"])
+    min_eig_val = metrics.min_eig_val(spec_d["vals"])
+    trace = metrics.trace_eig_vals(spec_d["vals"])
+    eig_val_ratio = metrics.eig_val_ratio(spec_d["vals"],10)
+    trace_over_max = trace / max_eig_val
+    metric_d = {
+        "l1_energy_pos": l1_energy_pos,
+        "l1_energy_neg": l1_energy_neg,
+        "max_eig_val": max_eig_val,
+        "min_eig_val": min_eig_val,
+        "trace": trace,
+        "eig_val_ratio": eig_val_ratio,
+        "trace_over_max": trace_over_max
+    }
+    metric_d = {k:float(v) for k,v in metric_d.items()}
+    return metric_d
 
 
 def plot_density(grids, density, label=None):
@@ -232,16 +297,26 @@ def plot_density(grids, density, label=None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    # parser.add_argument("--metadata_fp",type=str,default="/home/adamo/Downloads/gnn_checkpoints/metadata.json")
-    # parser.add_argument("--checkpoint_dp",type=str,default="/home/adamo/Downloads/gnn_checkpoints")
-    parser.add_argument("--metadata_fp",type=str, default="/home/adamo/Downloads/mnist-batchnorm-checkpoints-with-pickles/logs/batchnorm_off-activation_relu-width_256-depth_1-dropout_0-batch_1024/configurable_mnist_jax/trial_1/metadata.json")
-    parser.add_argument("--checkpoint_dp",type=str,default="/home/adamo/Downloads/mnist-batchnorm-checkpoints-with-pickles/logs/batchnorm_off-activation_relu-width_256-depth_1-dropout_0-batch_1024/configurable_mnist_jax/trial_1/checkpoints")
-    parser.add_argument("--steps",nargs="+",type=int,default=[0,100])
+    # parser.add_argument("--metadata_fp",type=str,default="/home/adamo/Downloads/mnist_checkpoints_2/batchnorm/metadata.json")
+    # parser.add_argument("--checkpoint_dp",type=str,default="/home/adamo/Downloads/mnist_checkpoints_2/batchnorm/checkpoints")
+    # parser.add_argument("--metadata_fp",type=str, default="/home/adamo/Downloads/mnist-batchnorm-checkpoints-with-pickles/logs/batchnorm_off-activation_relu-width_256-depth_1-dropout_0-batch_1024/configurable_mnist_jax/trial_1/metadata.json")
+    # parser.add_argument("--checkpoint_dp",type=str,default="/home/adamo/Downloads/mnist-batchnorm-checkpoints-with-pickles/logs/batchnorm_off-activation_relu-width_256-depth_1-dropout_0-batch_1024/configurable_mnist_jax/trial_1/checkpoints")
+    # parser.add_argument("--run_dp",type=str,default="/home/adamo/Downloads/mnist_checkpoints_2/batchnorm/")
+    parser.add_argument("--run_name",type=str,required=True)
+    parser.add_argument("--base_dp",type=str,default="/home/adamo/Downloads/mnist_checkpoints_2")
+    parser.add_argument("--trial",type=int,default=1)
+    parser.add_argument("--steps",nargs="+",type=int,default=None)
     parser.add_argument("--order",type=int,default=90)
     parser.add_argument("--num_samples",type=int,default=10)
     parser.add_argument("--data_dp",type=str,default="/home/adamo/Documents/tfds_datasets")
     parser.add_argument("--batch_size",type=int,default=-1)
     parser.add_argument("--num_batches",type=int,default=-1)
+    parser.add_argument("--precision",type=str,default="double",choices=["single","double"])
+    parser.add_argument("--grid_len",type=int,default=10000)
+    parser.add_argument("--sigma_squared",type=float,default=1e-5)
+    parser.add_argument("--project_name",type=str,default="CSC2541-2022")
+    parser.add_argument("--wandb_mode",type=str,default="offline",choices=["online","offline","disabled"])
+    parser.add_argument("--wandb_meta_dp",type=str,default=os.getcwd())
     args = parser.parse_args()
     print(args)
     main(args)
