@@ -1,0 +1,42 @@
+{
+    "workload": "cifar10_jax",
+    "datetime": "2022-04-09T13:41:16.848064",
+    "status": "COMPLETE",
+    "score": 478.40611505508423,
+    "logging_dir": "experiments/augmentation/saved/cifar10_aug_all_tests/with_aug/20%_data",
+    "submission_path": "baselines/cifar10/cifar10_jax/submission.py",
+    "tuning_ruleset": "external",
+    "num_tuning_trials": 5,
+    "tuning_search_space_path": "baselines/cifar10/tuning_search_space.json",
+    "tuning_search_space": {
+        "learning_rate": {
+            "feasible_points": [
+                0.001
+            ]
+        },
+        "momentum": {
+            "feasible_points": [
+                0.9
+            ]
+        }
+    },
+    "workload.eval_period_time_sec": 30,
+    "workload.max_allowed_runtime_sec": 3600,
+    "workload.num_eval_train_examples": 10000,
+    "workload.num_train_examples": 10000,
+    "workload.num_validation_examples": 10000,
+    "workload.target_value": 1.0,
+    "extra.cifar10.target_value": "1.0",
+    "extra.cifar10.aug_fliplr": "0.5",
+    "extra.cifar10.aug_width_shift_max": "2",
+    "extra.cifar10.aug_height_shift_max": "2",
+    "extra.cifar10.percent_data_select": "20",
+    "os_platform": "Linux-3.10.0-1160.36.2.el7.x86_64-x86_64-with-glibc2.17",
+    "python_version": "3.9.0",
+    "python_compiler": "GCC 7.3.0",
+    "cpu_model_name": "Intel Xeon Processor (Skylake, IBRS)",
+    "cpu_count": 38,
+    "gpu_model_name": "Tesla V100-PCIE-32GB",
+    "gpu_count": 1,
+    "gpu_driver": "470.42.01"
+}
