@@ -63,10 +63,11 @@ class CIFAR10Workload(CIFAR10):
                      data_dir: str,
                      batch_size):
 
+    split_pct = split
     if FLAGS.percent_data_selection < 100 and split == 'train':
-      split = split + '[{pct}%:]'.format(pct=FLAGS.percent_data_selection)
+      split_pct = split + '[{pct}%:]'.format(pct=FLAGS.percent_data_selection)
       
-    ds = tfds.load('cifar10', split=split, shuffle_files=True)
+    ds = tfds.load('cifar10', split=split_pct, shuffle_files=True)
     ds = ds.cache()
     ds = ds.map(lambda x: (self._normalize(x['image']), x['label'], None))
     if split == 'train':

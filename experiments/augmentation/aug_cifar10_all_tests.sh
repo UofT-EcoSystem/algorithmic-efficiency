@@ -1,7 +1,5 @@
-# This script will run an MNIST training workload and save measurements as CSV and metadata as JSON.
-#
-# Author: Daniel Snider <danielsnider12@gmail.com>
-#
+#! /bin/bash
+
 # Usage:
 # Must be located in main dir of algorithmic-efficiency project
 # sh experiments/augmentation/augment_tests.sh path/to/save/dir
@@ -9,6 +7,7 @@
 SAVE_DIR=$1
 TARGET_VALUE=1.0
 NUM_TRIALS=5
+AUG_CONFIG=experiments/augmentation/cifar_augments.json
 
 if [ -d $SAVE_DIR ]; then
   echo "save_dir: ${SAVE_DIR} already exists"
@@ -16,6 +15,7 @@ if [ -d $SAVE_DIR ]; then
 fi
 
 mkdir -p $SAVE_DIR
+cp $AUG_CONFIG ${SAVE_DIR}/aug_config.json
 
 for num_data in {10..100..10};
 do 
@@ -38,10 +38,10 @@ do
         --cp_step="epoch" \
         --cp_freq=1 \
         --extra_metadata="cifar10.target_value=$TARGET_VALUE" \
-        --extra_metadata="cifar10.percent_data_select=$num_data"
-        --percent_data_selection=$num_data
+        --extra_metadata="cifar10.percent_data_select=$num_data" \
+        --percent_data_selection=$num_data \
 
-    python3 -c "from algorithmic_efficiency import logging_utils; logging_utils.concatenate_csvs('$SAVE_DIR')"
+    python3 -c "from algorithmic_efficiency import logging_utils; logging_utils.concatenate_csvs('$LOG_DIR_SUB_EXPERIMENT')"
 
     set +x
 done
@@ -70,11 +70,11 @@ do
         --extra_metadata='cifar10.aug_fliplr=0.5' \
         --extra_metadata='cifar10.aug_width_shift_max=2' \
         --extra_metadata='cifar10.aug_height_shift_max=2' \
-        --extra_metadata="cifar10.percent_data_select=$num_data"
+        --extra_metadata="cifar10.percent_data_select=$num_data" \
         --augments=$AUG_CONFIG \
-        --percent_data_selection=$num_data
+        --percent_data_selection=$num_data \
 
-    python3 -c "from algorithmic_efficiency import logging_utils; logging_utils.concatenate_csvs('$SAVE_DIR')"
+    python3 -c "from algorithmic_efficiency import logging_utils; logging_utils.concatenate_csvs('$LOG_DIR_SUB_EXPERIMENT')"
 
     set +x
 done

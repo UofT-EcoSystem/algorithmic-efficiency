@@ -24,11 +24,13 @@ class CIFAR10(spec.Workload):
 
   @property
   def num_train_examples(self):
-    return 50000
+    p = float(float(FLAGS.percent_data_selection) / 100)
+    return int(p*50000)
 
   @property
   def num_eval_train_examples(self):
-    return 50000
+    p = float(float(FLAGS.percent_data_selection) / 100)
+    return int(p*50000)
 
   @property
   def num_validation_examples(self):
