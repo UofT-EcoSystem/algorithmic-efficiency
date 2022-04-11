@@ -48,7 +48,7 @@ class MnistAugmentation(MnistWorkload):
     FLAGS = flags.FLAGS
     split_pct = split
     if FLAGS.percent_data_selection < 100 and split == 'train':
-      split_pct = split + '[{pct}%:]'.format(pct=FLAGS.percent_data_selection)
+      split_pct = split + '[:{pct}%]'.format(pct=FLAGS.percent_data_selection)
 
     ds = tfds.load('mnist', split=split_pct)
     ds = ds.cache()
