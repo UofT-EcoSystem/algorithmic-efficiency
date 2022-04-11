@@ -24,6 +24,7 @@ import glob
 from tqdm import tqdm
 from pprint import pprint
 import wandb
+import numpy as np
 
 import submission_runner
 from submission_runner import FLAGS, _import_workload, WORKLOADS
@@ -35,6 +36,7 @@ import density as density_lib
 import hessian_computation
 import lanczos
 import metrics
+from simple_test import compute_metrics, compute_spectrum
 
 run_name_to_exp = {
     "act_gelu_100": "activation/batchnorm_off-activation_gelu-width_100-depth_3-dropout_0-batch_1024",
@@ -94,10 +96,15 @@ def main(args):
         print(f">>> step = {step}")
         params, model_state = load_params_model_state(args,step)
         print("model_state",not(model_state is None))
-        spec_d = compute_eigvals_density(args,wl,batches_list,params,model_state)
-        # plot_density(grids,density)
-        metric_d = compute_metrics(spec_d)
-        pprint(metric_d)
+        metric_d = {}
+        for mvp_type in args.mvp_types:
+            print(f">> mvp_type = {mvp_type}")
+            mvp_spec_d = analyze(args,wl,batches_list,params,model_state,mvp_type)
+            # plot_density(grids,density)
+            mvp_metric_d = compute_metrics(mvp_spec_d)
+            pprint(mvp_metric_d)
+            for k,v in mvp_metric_d.items():
+                metric_d[f"{mvp_type}_{k}"] = v
         metric_d["chkpt_step"] = step
         wandb.log(metric_d,commit=True)
     run.finish()
@@ -160,7 +167,7 @@ def get_batches_list(args,wl):
     return batches_list
 
 
-def compute_eigvals_density(args,wl,batches_list,params,model_state):
+def analyze(args,wl,batches_list,params,model_state,mvp_type):
 
     dummy_key = jax.random.PRNGKey(0)
     
@@ -186,6 +193,26 @@ def compute_eigvals_density(args,wl,batches_list,params,model_state):
                 dummy_key,
                 False
             )
+            loss_score = wl.loss_fn(
+                label_batch, logits_batch
+            )
+            mean_loss = jnp.mean(loss_score)
+            return mean_loss
+
+        def model(params,batch):
+            input_batch, label_batch, _ = batch
+            logits_batch, _ = wl.model_fn(
+                params,
+                input_batch,
+                model_state,
+                ForwardPassMode.TRAIN,
+                dummy_key,
+                False
+            )
+            return logits_batch
+
+        def model_loss(logits_batch,batch):
+            _, label_batch, _ = batch
             loss_score = wl.loss_fn(
                 label_batch, logits_batch
             )
@@ -225,63 +252,64 @@ def compute_eigvals_density(args,wl,batches_list,params,model_state):
     test_batch = batches_list[0]
     print(lax.stop_gradient(loss(params,test_batch)))
 
-    order = args.order
-    num_samples = args.num_samples
-    hvp, unravel, num_params = hessian_computation.get_hvp_fn(loss, params, batches_fn)
-    hvp_cl = lambda v: hvp(params, v) / num_batches # Match the API required by lanczos_alg
+    if mvp_type == "hvp":
 
-    print("num_params: {}".format(num_params))
-    start = time.time()
-    hvp_cl(jnp.ones(num_params)).block_until_ready() # first call of a jitted function compiles it
-    end = time.time()
-    print("hvp compile time: {}".format(end-start))
-    start = time.time()
-    hvp_cl(2*jnp.ones(num_params)).block_until_ready() # second+ call will be much faster
-    end = time.time()
-    print("hvp compute time: {}".format(end-start))
-    print(f"estimated time = {(end-start)*order*num_samples}")
+        hvp, unravel, num_params = hessian_computation.get_hvp_fn(loss, params, batches_fn)
+        mvp_cl = lambda v: hvp(params, v) / num_batches
 
-    rng = jax.random.PRNGKey(420420)
-    rngs = jax.random.split(rng,num=num_samples+1)
-    rng = rngs[0]
-    start = time.time()
-    tridiags, vecses = [], []
-    for i in tqdm(range(num_samples)):
-        tridiag, vecs = lanczos.lanczos_alg(hvp_cl, num_params, order, rngs[i+1])
-        tridiags.append(tridiag)
-        vecses.append(vecs)
-    end = time.time()
-    print("Lanczos time: {}".format(end-start)) # this should be ~ num_samples * order * hvp compute time
-    vals, _, vecs = density_lib.tridiag_to_eigv(tridiags, get_eig_vecs=True)
-    density, grids = density_lib.tridiag_to_density(tridiags, grid_len=args.grid_len, sigma_squared=args.sigma_squared)
-    out_d = {
-        "vals": vals,
-        "vecs": vecs,
-        "density": density,
-        "grids": grids
-    }
-    return out_d
+    elif mvp_type == "ggnvp":
 
+        ggnvp, unravel, num_params = hessian_computation.get_ggnvp_fn(model,model_loss,params,batches_fn)
+        mvp_cl = lambda v: ggnvp(params,v)
+    
+    elif mvp_type == "jjvp":
 
-def compute_metrics(spec_d):
+        jjvp, unravel, num_params = hessian_computation.get_jjvp_fn(loss, params, batches_fn)
+        mvp_cl = lambda v: jjvp(params, v) / num_batches
 
-    l1_energy_pos, l1_energy_neg = metrics.l1_energy(spec_d["density"],spec_d["grids"])
-    max_eig_val = metrics.max_eig_val(spec_d["vals"])
-    min_eig_val = metrics.min_eig_val(spec_d["vals"])
-    trace = metrics.trace_eig_vals(spec_d["vals"])
-    eig_val_ratio = metrics.eig_val_ratio(spec_d["vals"],10)
-    trace_over_max = trace / max_eig_val
-    metric_d = {
-        "l1_energy_pos": l1_energy_pos,
-        "l1_energy_neg": l1_energy_neg,
-        "max_eig_val": max_eig_val,
-        "min_eig_val": min_eig_val,
-        "trace": trace,
-        "eig_val_ratio": eig_val_ratio,
-        "trace_over_max": trace_over_max
-    }
-    metric_d = {k:float(v) for k,v in metric_d.items()}
-    return metric_d
+    jac = hessian_computation.get_jac(loss, params, batches_fn)
+    print(jac.shape, jac.sum())
+
+    spec_d = compute_spectrum(mvp_cl,num_params,jac,args.order,args.num_samples)
+    return spec_d
+
+    # order = args.order
+    # num_samples = args.num_samples
+    # hvp, unravel, num_params = hessian_computation.get_hvp_fn(loss, params, batches_fn)
+    # hvp_cl = lambda v: hvp(params, v) / num_batches # Match the API required by lanczos_alg
+
+    # print("num_params: {}".format(num_params))
+    # start = time.time()
+    # hvp_cl(jnp.ones(num_params)).block_until_ready() # first call of a jitted function compiles it
+    # end = time.time()
+    # print("hvp compile time: {}".format(end-start))
+    # start = time.time()
+    # hvp_cl(2*jnp.ones(num_params)).block_until_ready() # second+ call will be much faster
+    # end = time.time()
+    # print("hvp compute time: {}".format(end-start))
+    # print(f"estimated time = {(end-start)*order*num_samples}")
+
+    # rng = jax.random.PRNGKey(420420)
+    # rngs = jax.random.split(rng,num=num_samples+1)
+    # rng = rngs[0]
+    # start = time.time()
+    # tridiags, lcz_vecs = [], []
+    # for i in tqdm(range(num_samples)):
+    #     tridiag, vec = lanczos.lanczos_alg(hvp_cl, num_params, order, rngs[i+1])
+    #     tridiags.append(tridiag)
+    #     lcz_vecs.append(vec)
+    # end = time.time()
+    # print("Lanczos time: {}".format(end-start)) # this should be ~ num_samples * order * hvp compute time
+    # eig_vals, _, eig_vecs = density_lib.tridiag_to_eigv(tridiags, get_eig_vecs=True)
+    # density, grids = density_lib.tridiag_to_density(tridiags, grid_len=args.grid_len, sigma_squared=args.sigma_squared)
+    # out_d = {
+    #     "eig_vals": eig_vals,
+    #     "eig_vecs": eig_vecs,
+    #     "lcz_vecs": jnp.stack(lcz_vecs,axis=0),
+    #     "density": density,
+    #     "grids": grids
+    # }
+    # return out_d
 
 
 def plot_density(grids, density, label=None):
@@ -314,6 +342,7 @@ if __name__ == "__main__":
     parser.add_argument("--precision",type=str,default="double",choices=["single","double"])
     parser.add_argument("--grid_len",type=int,default=10000)
     parser.add_argument("--sigma_squared",type=float,default=1e-5)
+    parser.add_argument("--mvp_types",type=str,nargs="+",default=["hvp"])
     parser.add_argument("--project_name",type=str,default="CSC2541-2022")
     parser.add_argument("--wandb_mode",type=str,default="offline",choices=["online","offline","disabled"])
     parser.add_argument("--wandb_meta_dp",type=str,default=os.getcwd())
