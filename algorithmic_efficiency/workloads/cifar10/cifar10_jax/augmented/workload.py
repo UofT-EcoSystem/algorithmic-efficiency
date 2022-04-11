@@ -7,6 +7,7 @@ import tensorflow as tf
 import jax.numpy as jnp
 import tensorflow_addons as tfa
 from absl import flags
+from absl import logging
 
 class Custom_CIFAR10Workload(CIFAR10Workload):
   def _build_dataset(self,

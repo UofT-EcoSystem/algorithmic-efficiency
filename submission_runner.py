@@ -46,6 +46,10 @@ WORKLOADS = {
         'workload_path': BASE_WORKLOADS_DIR + 'mnist/mnist_jax/augmentation/workload.py',
         'workload_class_name': 'MnistAugmentation'
     },
+    'coil100_jax': {
+        'workload_path': BASE_WORKLOADS_DIR + 'coil100/coil100_jax/workload.py',
+        'workload_class_name': 'COIL100Workload'
+    },
     'configurable_mnist_jax': {
         'workload_path':
             BASE_WORKLOADS_DIR + 'mnist/configurable_mnist_jax/workload.py',
