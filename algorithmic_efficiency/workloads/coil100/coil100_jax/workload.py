@@ -9,10 +9,11 @@ import tensorflow as tf
 import tensorflow_datasets as tfds
 
 from algorithmic_efficiency import spec
-from algorithmic_efficiency.workloads.cifar10.workload import CIFAR10
+from algorithmic_efficiency.workloads.coil100.workload import COIL100
 from absl import flags
 from algorithmic_efficiency.augmentation import ImageAugmenter
 from absl import logging
+import dill
 
 FLAGS = flags.FLAGS
 
@@ -32,7 +33,7 @@ class VGGblock(nn.Module):
 
 class _Model(nn.Module):
 
-  num_classes: 10
+  num_classes: 100
 
   @nn.compact
   def __call__(self, x: spec.Tensor, train: bool):
@@ -47,15 +48,15 @@ class _Model(nn.Module):
     x = nn.log_softmax(x)
     return x
 
-class CIFAR10Workload(CIFAR10):
+class COIL100Workload(COIL100):
 
   def __init__(self):
     self._eval_ds = None
     self._param_shapes = None
-    self._model = _Model(num_classes=10)
+    self._model = _Model(num_classes=100)
 
   def _normalize(self, image):
-    return tf.cast(image, tf.float32) / 255.0
+    return (tf.cast(image, tf.float32) - self.train_mean) / self.train_stddev
 
   def _build_dataset(self,
                      data_rng: jax.random.PRNGKey,
@@ -63,19 +64,17 @@ class CIFAR10Workload(CIFAR10):
                      data_dir: str,
                      batch_size):
 
-    split_pct = split
-    if FLAGS.percent_data_selection < 100 and split == 'train':
-      split_pct = split + '[:{pct}%]'.format(pct=FLAGS.percent_data_selection)
-      
-    ds = tfds.load('cifar10', split=split_pct, shuffle_files=True)
+    with open(data_dir, 'rb') as file:
+      data = dill.load(file)
+    data = data[split]
+    ds = tf.data.Dataset.from_tensor_slices((self._normalize(data['image']), data['label'], None))
     ds = ds.cache()
-    ds = ds.map(lambda x: (self._normalize(x['image']), x['label'], None))
     if split == 'train':
-      ds = ds.shuffle(1024, seed=data_rng[0])
+      ds = ds.shuffle(5760, seed=data_rng[0])
       ds = ds.repeat()
 
     # Must drop remainder so that batch size is not None for augmentations
-    ds = ds.batch(batch_size, drop_remainder=True) 
+    ds = ds.batch(batch_size, drop_remainder=True)
 
     if FLAGS.augments is not None:
       logging.info('Augmenting data with: %s' % FLAGS.augments)
@@ -130,7 +129,7 @@ class CIFAR10Workload(CIFAR10):
     return raw_input_batch, raw_label_batch
 
   def init_model_fn(self, rng: spec.RandomState) -> spec.ModelInitState:
-    init_val = jnp.ones((1, 32, 32, 3), jnp.float32)
+    init_val = jnp.ones((1, 128, 128, 3), jnp.float32)
     initial_params = self._model.init(rng, init_val, train=True)['params']
     self._param_shapes = jax.tree_map(lambda x: spec.ShapeTuple(x.shape),
                                       initial_params)
@@ -169,7 +168,7 @@ class CIFAR10Workload(CIFAR10):
   # `update_params`.
   def loss_fn(self, label_batch: spec.Tensor,
               logits_batch: spec.Tensor) -> spec.Tensor:  # differentiable
-    one_hot_targets = jax.nn.one_hot(label_batch, 10)
+    one_hot_targets = jax.nn.one_hot(label_batch, 100)
     return -jnp.sum(one_hot_targets * nn.log_softmax(logits_batch), axis=-1)
 
   def _eval_metric(self, logits, labels):

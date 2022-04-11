@@ -1,0 +1,9 @@
+{
+  "fliplr": {},
+  "invert": {},
+  "gaussian_noise": {},
+  "shift": {
+    "width_shift_max": 13,
+    "height_shift_max": 13
+  }
+}

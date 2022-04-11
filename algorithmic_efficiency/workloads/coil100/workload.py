@@ -5,7 +5,7 @@ from absl import flags
 FLAGS = flags.FLAGS
 
 
-class CIFAR10(spec.Workload):
+class COIL100(spec.Workload):
 
   def has_reached_goal(self, eval_result: float) -> bool:
     return eval_result['accuracy'] > self.target_value
@@ -14,7 +14,7 @@ class CIFAR10(spec.Workload):
   def target_value(self):
     if FLAGS.extra_metadata is not None:
       meta = _get_extra_metadata_as_dict(FLAGS.extra_metadata)
-      return float(meta.get('extra.cifar10.target_value', 0.95))
+      return float(meta.get('extra.coil100.target_value', 0.95))
     else:
       return 0.95
 
@@ -38,11 +38,11 @@ class CIFAR10(spec.Workload):
 
   @property
   def train_mean(self):
-    return [0.49139968 * 255.0, 0.48215827 * 255.0, 0.44653124 * 255.0]
+    return [0.3072981, 0.25998312, 0.20694065]
 
   @property
   def train_stddev(self):
-    return [0.24703233 * 255.0, 0.24348505 * 255.0, 0.26158768 * 255.0]
+    return [0.26866272, 0.2180665, 0.19673812]
 
   @property
   def max_allowed_runtime_sec(self):
@@ -63,7 +63,7 @@ class CIFAR10(spec.Workload):
                  data_dir: str):
     """Run a full evaluation of the model."""
     data_rng, model_rng = prng.split(rng, 2)
-    eval_batch_size = 2000
+    eval_batch_size = 1440
     self._eval_ds = self.build_input_queue(
         data_rng, 'test', data_dir, batch_size=eval_batch_size)
 
