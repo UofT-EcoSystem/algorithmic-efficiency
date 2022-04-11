@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import os
 
-experiment = 'cifar10_baseline'
+experiment = 'cifar10_aug_offline'
 df = pd.read_csv(os.path.join('saved', experiment, 'all_measurements.csv'))
 
 trial_best = pd.DataFrame()
