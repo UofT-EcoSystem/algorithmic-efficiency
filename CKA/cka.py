@@ -205,8 +205,6 @@ def plot_cka_matrix(cka_matrix, title="All-CNN-C",
 
 if __name__ == "__main__":
 
-    import pickle
-    from algorithmic_efficiency import random_utils as prng
     comparison_checkpoint = './experiments/augmentation/saved/cifar10_baseline/checkpoints/tune1_epoch_15'
     checkpoints_dir = './experiments/augmentation/saved/cifar10_baseline/checkpoints'
 
