@@ -13,7 +13,7 @@ from algorithmic_efficiency import spec
 
 def get_batch_size(workload_name):
   # Return the global batch size.
-  batch_sizes = {'coil100_jax': 64}
+  batch_sizes = {'coil100_jax': 64, 'coil100_jax_dropout': 64}
   return batch_sizes[workload_name]
 
 

@@ -50,6 +50,10 @@ WORKLOADS = {
         'workload_path': BASE_WORKLOADS_DIR + 'coil100/coil100_jax/workload.py',
         'workload_class_name': 'COIL100Workload'
     },
+    'coil100_jax_dropout': {
+        'workload_path': BASE_WORKLOADS_DIR + 'coil100/coil100_jax/workload_dropout.py',
+        'workload_class_name': 'Dropout_COIL100Workload'
+    },
     'configurable_mnist_jax': {
         'workload_path':
             BASE_WORKLOADS_DIR + 'mnist/configurable_mnist_jax/workload.py',
@@ -67,6 +71,10 @@ WORKLOADS = {
     'cifar10_jax_custom': {
       'workload_path': BASE_WORKLOADS_DIR + 'cifar10/cifar10_jax/augmented/workload.py',
       'workload_class_name': 'Custom_CIFAR10Workload',
+    },
+    'cifar10_jax_dropout': {
+      'workload_path': BASE_WORKLOADS_DIR + 'cifar10/cifar10_jax/workload_dropout.py',
+      'workload_class_name': 'Dropout_CIFAR10Workload',
     },
     'cifar10_jax_augmentation': {
         'workload_path': BASE_WORKLOADS_DIR + 'cifar10/cifar10_jax/augmented/workload.py',
