@@ -1,0 +1,41 @@
+{
+    "workload": "coil100_jax",
+    "datetime": "2022-04-12T15:51:24.654948",
+    "status": "COMPLETE",
+    "score": 563.2640581130981,
+    "logging_dir": "experiments/augmentation/saved/coil100_all_tests_redo_pt2/all_aug",
+    "submission_path": "baselines/coil100/coil100_jax/submission.py",
+    "tuning_ruleset": "external",
+    "num_tuning_trials": 5,
+    "tuning_search_space_path": "baselines/coil100/tuning_search_space.json",
+    "tuning_search_space": {
+        "learning_rate": {
+            "feasible_points": [
+                0.001
+            ]
+        },
+        "momentum": {
+            "feasible_points": [
+                0.9
+            ]
+        }
+    },
+    "workload.eval_period_time_sec": 30,
+    "workload.max_allowed_runtime_sec": 3600,
+    "workload.num_eval_train_examples": 5760,
+    "workload.num_train_examples": 5760,
+    "workload.num_validation_examples": 1440,
+    "workload.target_value": 1.0,
+    "extra.coil100.target_value": "1.0",
+    "extra.coil100.aug_fliplr": "0.5",
+    "extra.cifar10.aug_width_shift_max": "13",
+    "extra.cifar10.aug_height_shift_max": "13",
+    "os_platform": "Linux-3.10.0-1160.36.2.el7.x86_64-x86_64-with-glibc2.17",
+    "python_version": "3.9.0",
+    "python_compiler": "GCC 7.3.0",
+    "cpu_model_name": "Intel Xeon Processor (Skylake, IBRS)",
+    "cpu_count": 38,
+    "gpu_model_name": "Tesla V100-PCIE-32GB",
+    "gpu_count": 1,
+    "gpu_driver": "470.42.01"
+}
