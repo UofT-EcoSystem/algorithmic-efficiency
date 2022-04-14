@@ -40,7 +40,7 @@ class Dropout_CIFAR10Workload(CIFAR10Workload):
   def __init__(self):
     self._eval_ds = None
     self._param_shapes = None
-    self._model = _Model(num_classes=100)
+    self._model = _Model(num_classes=10)
 
   def _normalize(self, image):
     return (tf.cast(image, tf.float32) - self.train_mean) / self.train_stddev
