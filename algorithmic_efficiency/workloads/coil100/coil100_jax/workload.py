@@ -7,7 +7,6 @@ import jax
 import jax.numpy as jnp
 import tensorflow as tf
 import tensorflow_datasets as tfds
-
 from algorithmic_efficiency import spec
 from algorithmic_efficiency.workloads.coil100.workload import COIL100
 from absl import flags
@@ -17,6 +16,20 @@ import dill
 
 FLAGS = flags.FLAGS
 
+# class VGGblock(nn.Module):
+#   'A VGG Block'
+
+#   num_filters: int
+
+#   @nn.compact
+#   def __call__(self, x):
+#     x = nn.Conv(features=self.num_filters, kernel_size=(3, 3))(x)
+#     x = nn.relu(x)
+#     x = nn.Conv(features=self.num_filters, kernel_size=(3, 3))(x)
+#     x = nn.relu(x)
+#     x = nn.max_pool(x, window_shape=(2, 2), strides=(2, 2))
+#     return x
+
 class VGGblock(nn.Module):
   'A VGG Block'
 
@@ -25,11 +38,13 @@ class VGGblock(nn.Module):
   @nn.compact
   def __call__(self, x):
     x = nn.Conv(features=self.num_filters, kernel_size=(3, 3))(x)
+    r1 = x.reshape((x.shape[0], -1))
     x = nn.relu(x)
     x = nn.Conv(features=self.num_filters, kernel_size=(3, 3))(x)
+    r2 = x.reshape((x.shape[0], -1))
     x = nn.relu(x)
     x = nn.max_pool(x, window_shape=(2, 2), strides=(2, 2))
-    return x
+    return x, r1, r2
 
 class _Model(nn.Module):
 
@@ -48,7 +63,7 @@ class _Model(nn.Module):
     x = nn.log_softmax(x)
     return x
 
-class _ModelActivationsCoil100(nn.Module):
+class _ModelActivations(nn.Module):
 
   num_classes: 10
 
@@ -56,23 +71,25 @@ class _ModelActivationsCoil100(nn.Module):
   def __call__(self, x: spec.Tensor, train: bool):
     del train
     all_features = []
-    x = VGGblock(num_filters=32)(x)
-    all_features.append(x.reshape((x.shape[0], -1)))
-    x = VGGblock(num_filters=64)(x)
-    all_features.append(x.reshape((x.shape[0], -1)))
-    x = VGGblock(num_filters=128)(x)
-    all_features.append(x.reshape((x.shape[0], -1)))
+    x, act1, act2 = VGGblock(num_filters=32)(x)
+    all_features.append(act1)
+    all_features.append(act2)
+    x, act3, act4 = VGGblock(num_filters=64)(x)
+    all_features.append(act3)
+    all_features.append(act4)
+    x, act5, act6 = VGGblock(num_filters=128)(x)
+    all_features.append(act5)
+    all_features.append(act6)
     x = x.reshape((x.shape[0], -1))  # flatten
     x = nn.Dense(features=128)(x)
     all_features.append(x.reshape((x.shape[0], -1)))
     x = nn.relu(x)
-    all_features.append(x.reshape((x.shape[0], -1)))
     x = nn.Dense(features=self.num_classes)(x)
     all_features.append(x.reshape((x.shape[0], -1)))
     x = nn.log_softmax(x)
-    all_features.append(x.reshape((x.shape[0], -1)))
 
     return all_features
+
 class COIL100Workload(COIL100):
 
   def __init__(self):

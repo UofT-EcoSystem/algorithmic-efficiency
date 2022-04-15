@@ -1,5 +1,5 @@
 """
-Sourced from https://github.com/RobertTLange/code-and-blog
+Sourced partially from https://github.com/RobertTLange/code-and-blog
 """
 import os
 import jax
@@ -16,7 +16,8 @@ from flax.training import checkpoints
 
 from algorithmic_efficiency import checkpoint
 from algorithmic_efficiency.workloads.mnist.mnist_jax.augmentation.workload import MnistAugmentation
-from algorithmic_efficiency.workloads.cifar10.cifar10_jax.workload import _ModelActivations
+#from algorithmic_efficiency.workloads.cifar10.cifar10_jax.workload import _Model
+from algorithmic_efficiency.workloads.coil100.coil100_jax.workload import _ModelActivations
 
 def CKA(X, Y, kernel="linear", sigma_frac=0.4):
     """Centered Kernel Alignment."""
@@ -91,51 +92,23 @@ def build_dataset(data_rng: jax.random.PRNGKey,
                      batch_size,
                      dataset):
     def _normalize(image):
-        return tf.cast(image, tf.float32) / 255.0
+        if dataset == "coil100":
+            train_mean = [0.3072981, 0.25998312, 0.20694065]
+            train_stddev=[0.26866272, 0.2180665, 0.19673812]
+        elif dataset == "cifar10":
+            train_mean = [0.49139968 * 255.0, 0.48215827 * 255.0, 0.44653124 * 255.0]
+            train_stddev = [0.24703233 * 255.0, 0.24348505 * 255.0, 0.26158768 * 255.0]
+        return (tf.cast(image, tf.float32) - train_mean) / train_stddev
 
     ds = tfds.load(dataset, split=split)
     ds = ds.cache()
-    ds = ds.map(lambda x: (_normalize(x['image']), x['label'], None))
+    ds = ds.map(lambda x: (_normalize(x['image']), x['label' if dataset == "cifar10" else "object_id"], None))
     if split == 'train':
-      ds = ds.shuffle(1024, seed=data_rng[0])
+      ds = ds.shuffle(5760, seed=data_rng[0])
       ds = ds.repeat()
     ds = ds.batch(batch_size)
 
     return tfds.as_numpy(ds)
-
-def main(fname, kernel="linear"):
-    log = load_log(os.path.join("../checkpoints/", fname))
-    # Get CIFAR-10 dataloader
-    train_loader, test_loader = get_dataloaders(2056)
-    # Get batch data & compute final activations
-    for batch_idx, (data, target) in enumerate(test_loader):
-        batch_images = jnp.array(data)
-        break
-
-
-    cnn_vars = load_model(log.meta.model_ckpt, model_type="jax")
-    model = All_CNN_C_Features(**log.meta.config_dict["model_config"])
-    activations_final = model.apply(cnn_vars, batch_images, train=False)
-
-    # Reload the trained final checkpoint
-    all_cka_matrices = []
-    ckpt_list = [log.meta.init_ckpt]
-    ckpt_list = ckpt_list + log.meta.every_k_ckpt_list
-
-    # Loop over all checkpoint and construct CKA of ckpt vs final ckpt
-    for ckpt_path in ckpt_list:
-        cnn_vars = load_model(ckpt_path, model_type="jax")
-        activations_ckpt = model.apply(cnn_vars, batch_images, train=False)
-        cka_matrix = get_cka_matrix(activations_ckpt, activations_final, kernel)
-        all_cka_matrices.append(cka_matrix)
-        print(ckpt_path)
-
-    stacked_rsm = np.stack(all_cka_matrices, axis=0)
-    np.save(f"rsm_{fname}_{kernel}.npy", stacked_rsm)
-
-    reload = np.load(f"rsm_{fname}_{kernel}.npy")
-    print(reload.shape)
-
 
 def get_checkpoint(load_path, prefix, step=None):
     '''Load a checkpoint from a checkpoint file. The checkpoints are
@@ -165,9 +138,10 @@ def get_checkpoint(load_path, prefix, step=None):
 
     return ckpt
 
-def plot_cka_matrix(cka_matrix, title="All-CNN-C",
+def plot_cka_matrix(cka_matrix,
                     xlabel="Layer ID", ylabel="Layer ID",
-                    every_nth_tick=1, ax=None, fig=None):
+                    every_nth_tick=1, ax=None, fig=None,
+                    save="default"):
     """" Helper Function for Plotting CKA Matrices. """
     if ax is None:
         fig, ax = plt.subplots(figsize=(12,8))
@@ -191,7 +165,6 @@ def plot_cka_matrix(cka_matrix, title="All-CNN-C",
     for n, label in enumerate(ax.xaxis.get_ticklabels()):
         if n % every_nth_tick != 0:
             label.set_visible(False)
-    ax.set_title(title, fontsize=16)
     plt.setp(ax.get_xticklabels(), rotation=75, ha="right", rotation_mode="anchor")
 
     divider = make_axes_locatable(ax)
@@ -200,36 +173,66 @@ def plot_cka_matrix(cka_matrix, title="All-CNN-C",
     cbar.set_label("CKA Score", rotation=270, labelpad=30, fontsize=18)
     cbar.ax.tick_params(labelsize=14)
     fig.tight_layout()
-    plt.savefig("CKA")
 
+    plt.savefig(save, dpi=150)
 
 if __name__ == "__main__":
+    ds = "coil100" #or 'coil100'
 
-    comparison_checkpoint = './experiments/augmentation/saved/cifar10_baseline/checkpoints/tune1_epoch_15'
-    checkpoints_dir = './experiments/augmentation/saved/cifar10_baseline/checkpoints'
+    if ds == 'cifar10':
+        chpts = {'NoAugNoDropout' : './experiments/augmentation/saved/cifar10_exp3/no_aug/checkpoints/tune1_epoch_10',
+            'TexAugNoDropout': './experiments/augmentation/saved/cifar10_exp3/tex_aug/checkpoints/tune1_epoch_16',
+            'GeoAugNoDropout': './experiments/augmentation/saved/cifar10_exp3/geo_aug/checkpoints/tune1_epoch_33',
+            'AllAugNoDropout': './experiments/augmentation/saved/cifar10_exp3/all_aug/checkpoints/tune1_epoch_70',
+            'NoAugDropout' : './experiments/augmentation/saved/cifar10_dropout/no_aug/checkpoints/tune1_epoch_46',
+            'TexAugDropout' : './experiments/augmentation/saved/cifar10_dropout/tex_aug/checkpoints/tune1_epoch_57',
+            'GeoAugDropout' : './experiments/augmentation/saved/cifar10_dropout/geo_aug/checkpoints/tune1_epoch_100',
+            'AllAugDropout' : './experiments/augmentation/saved/cifar10_dropout/all_aug/checkpoints/tune1_epoch_95'}
+    else:
+        chpts = {'NoAugNoDropout' : './experiments/augmentation/saved/coil100_all_tests_redo_pt2/no_aug/checkpoints/tune1_epoch_21',
+            'TexAugNoDropout': './experiments/augmentation/saved/coil100_all_tests_redo_pt2/tex_aug/checkpoints/tune3_epoch_21',
+            'GeoAugNoDropout': './experiments/augmentation/saved/coil100_all_tests_redo_pt2/geo_aug/checkpoints/tune1_epoch_21',
+            'AllAugNoDropout': './experiments/augmentation/saved/coil100_all_tests_redo_pt2/all_aug/checkpoints/tune1_epoch_21',
+            'NoAugDropout' : './experiments/augmentation/saved/coil100_dropout/no_aug/checkpoints/tune1_epoch_21',
+            'TexAugDropout' : './experiments/augmentation/saved/coil100_dropout/tex_aug/checkpoints/tune1_epoch_21',
+            'GeoAugDropout' : './experiments/augmentation/saved/coil100_dropout/geo_aug/checkpoints/tune1_epoch_21',
+            'AllAugDropout' : './experiments/augmentation/saved/coil100_dropout/all_aug/checkpoints/tune1_epoch_21'}
 
-    ckpt = get_checkpoint(comparison_checkpoint, "tune")
-    #This is for CIFAR10, see workloads/cifar10/cifar10_jax/workload.py to make one for other models
+    
+    #checkpoint1 = './experiments/augmentation/saved/coil100_all_tests_redo_pt2/geo_aug/checkpoints/tune1_epoch_21'
+    #checkpoint2 = './experiments/augmentation/saved/coil100_all_tests_redo_pt2/geo_aug/checkpoints/tune1_epoch_21'
+    plots = [('NoAugNoDropout', 'TexAugNoDropout'), 
+             ('NoAugNoDropout', 'GeoAugNoDropout'),
+             ('NoAugNoDropout', 'AllAugNoDropout'),
+             ('NoAugNoDropout', 'NoAugDropout'),
+             ('NoAugDropout', 'TexAugNoDropout'),
+             ('NoAugDropout', 'GeoAugNoDropout'),
+             ('NoAugDropout', 'AllAugNoDropout')]
 
-    model = _ModelActivations(num_classes=10) 
 
-    input_queue = iter(build_dataset(jax_rng.PRNGKey(0), 'train', data_dir='~/', batch_size=32, dataset='cifar10'))
-    batch_images = np.array(next(input_queue))
+    input_queue = iter(build_dataset(jax_rng.PRNGKey(0), 'train', data_dir='~/', batch_size=32, dataset=ds))
+    batch_images = next(input_queue)
+    for pair in plots:
+        print(pair)
+        checkpoint1, checkpoint2 = chpts[pair[0]], chpts[pair[1]]
 
-    #activations_final = model.apply(batch_images, train=False)
-    activations_final = model.apply({'params':ckpt['params']},
-                                     batch_images[0],
-                                     train=False)
-    ckpt_list = ['tune2_epoch_13'] # List of all the checkpoints you want to compare against the comparison here. 
-    for single_ckpt in ckpt_list:
-        ckpt = get_checkpoint(os.path.join(checkpoints_dir, single_ckpt), "tune")
-        activations_ckpt = model.apply({'params':ckpt['params']},
-                                 batch_images[0],
-                                 train=False)
+        ckpt1 = get_checkpoint(checkpoint1, "tune")
+        ckpt2 = get_checkpoint(checkpoint2, "tune")
 
-        cka_matrix = get_cka_matrix(activations_final, activations_ckpt, "linear")
-        print(cka_matrix)
-        # Just plot them for now
-        plot_cka_matrix(cka_matrix, title="CNN",
-                    xlabel="Layer ID", ylabel="Layer ID",
-                    every_nth_tick=1, ax=None, fig=None)
+        #This is for CIFAR10, see workloads/cifar10/cifar10_jax/workload.py to make one for other models
+
+        model = _ModelActivations(num_classes=10 if ds == 'cifar10' else 100) 
+
+
+        activations_1 = model.apply({'params':ckpt1['params']},
+                                         batch_images[0],
+                                         train=False)
+
+        activations_2 = model.apply({'params':ckpt2['params']},
+                                         batch_images[0],
+                                         train=False)
+        cka_matrix = get_cka_matrix(activations_1, activations_2, "linear")
+
+        plot_cka_matrix(cka_matrix,
+                    xlabel=pair[0], ylabel=pair[1],
+                    every_nth_tick=1, ax=None, fig=None, save="{} {} - {}".format(ds,pair[0], pair[1]))
