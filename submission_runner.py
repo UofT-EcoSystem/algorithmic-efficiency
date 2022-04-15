@@ -201,6 +201,12 @@ flags.DEFINE_integer(
   'where N is the number of evals, epochs or steps (see checkpoint_step flag) '
   'to wait before saving another checkpoint. The final model is also saved'
 )
+flags.DEFINE_integer(
+  'cp_max',
+  20,
+  lower_bound=1,
+  help='The maximum number of checkpoints per run'
+)
 
 FLAGS = flags.FLAGS
 
@@ -409,6 +415,7 @@ def score_submission_on_workload(workload: spec.Workload,
       workload=workload,
       ckpt_step=FLAGS.cp_step,
       ckpt_freq=FLAGS.cp_freq,
+      max_per_run=FLAGS.cp_max,
     )
 
   if FLAGS.logging_dir:

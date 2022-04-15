@@ -98,18 +98,20 @@ class COIL100Workload(COIL100):
       ds = ds.shuffle(5760, seed=data_rng[0])
       ds = ds.repeat()
 
-    # Must drop remainder so that batch size is not None for augmentations
-    ds = ds.batch(batch_size, drop_remainder=True)
+      # Must drop remainder so that batch size is not None for augmentations
+      ds = ds.batch(batch_size, drop_remainder=True)
 
-    if FLAGS.augments is not None:
-      logging.info('Augmenting data with: %s' % FLAGS.augments)
-      data_rng, aug_rng = jax.random.split(data_rng)
-      aug = ImageAugmenter(FLAGS.augments, rng=aug_rng)
-      ds = ds.map(
-        lambda im_batch, l_batch, m_batch:
-        (aug.apply_augmentations(im_batch), l_batch, m_batch)
-      ) # Apply augmentations to whole batch
-    
+      if FLAGS.augments is not None:
+        logging.info('Augmenting data with: %s' % FLAGS.augments)
+        data_rng, aug_rng = jax.random.split(data_rng)
+        aug = ImageAugmenter(FLAGS.augments, rng=aug_rng)
+        ds = ds.map(
+          lambda im_batch, l_batch, m_batch:
+          (aug.apply_augmentations(im_batch), l_batch, m_batch)
+        ) # Apply augmentations to whole batch
+    else:
+      ds = ds.batch(batch_size)
+      
     return tfds.as_numpy(ds)
 
   def build_input_queue(self,
