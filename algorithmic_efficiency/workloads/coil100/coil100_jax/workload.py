@@ -48,6 +48,31 @@ class _Model(nn.Module):
     x = nn.log_softmax(x)
     return x
 
+class _ModelActivationsCoil100(nn.Module):
+
+  num_classes: 10
+
+  @nn.compact
+  def __call__(self, x: spec.Tensor, train: bool):
+    del train
+    all_features = []
+    x = VGGblock(num_filters=32)(x)
+    all_features.append(x.reshape((x.shape[0], -1)))
+    x = VGGblock(num_filters=64)(x)
+    all_features.append(x.reshape((x.shape[0], -1)))
+    x = VGGblock(num_filters=128)(x)
+    all_features.append(x.reshape((x.shape[0], -1)))
+    x = x.reshape((x.shape[0], -1))  # flatten
+    x = nn.Dense(features=128)(x)
+    all_features.append(x.reshape((x.shape[0], -1)))
+    x = nn.relu(x)
+    all_features.append(x.reshape((x.shape[0], -1)))
+    x = nn.Dense(features=self.num_classes)(x)
+    all_features.append(x.reshape((x.shape[0], -1)))
+    x = nn.log_softmax(x)
+    all_features.append(x.reshape((x.shape[0], -1)))
+
+    return all_features
 class COIL100Workload(COIL100):
 
   def __init__(self):
