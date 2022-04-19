@@ -25,7 +25,7 @@ class EarlyStopping:
     "patience": 0,
     "min_steps": 0,
     "max_steps": null,
-    "mode": "min",
+    "mode": "minimize",
     "baseline": null
   }
   ```
@@ -63,20 +63,20 @@ class EarlyStopping:
     self.patience = config.get('patience', 0)
     self.min_steps = config.get('min_steps', 0)
     self.max_steps = config.get('max_steps', None)
-    self.mode = config.get('mode', 'min')
+    self.mode = config.get('mode', 'minimize')
     self.baseline_score = config.get('baseline', None)
     self.no_change_count = 0
 
     try:
-      assert (self.mode in ['min', 'max'])
+      assert (self.mode in ['minimize', 'maximize'])
     except:
       logging.error(
           'Failed to parse early_stopping config. Please check "mode" setting.')
       raise
-    if self.mode == 'min':
+    if self.mode == 'minimize':
       self.compare_fn = lambda a, b: np.less(a, b - self.min_delta)
       self.best_score = np.Inf
-    elif self.mode == 'max':
+    elif self.mode == 'maximize':
       self.compare_fn = lambda a, b: np.greater(a, b + self.min_delta)
       self.best_score = -np.Inf
     if self.baseline_score:

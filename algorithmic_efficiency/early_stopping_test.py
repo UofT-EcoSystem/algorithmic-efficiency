@@ -1,7 +1,7 @@
 """Tests for early_stopping.py."""
 
 from absl.testing import absltest
-import early_stopping
+from algorithmic_efficiency import early_stopping
 
 
 class EarlyStoppingTest(absltest.TestCase):
@@ -15,7 +15,7 @@ class EarlyStoppingTest(absltest.TestCase):
         "patience": 0,
         "min_steps": 0,
         "max_steps": None,
-        "mode": "min",
+        "mode": "minimize",
         "baseline": None
     }
     early_stop_check = early_stopping.EarlyStopping(
@@ -38,7 +38,7 @@ class EarlyStoppingTest(absltest.TestCase):
         "patience": 0,
         "min_steps": 0,
         "max_steps": None,
-        "mode": "max",
+        "mode": "maximize",
         "baseline": None
     }
     early_stop_check = early_stopping.EarlyStopping(
@@ -61,7 +61,7 @@ class EarlyStoppingTest(absltest.TestCase):
         "patience": 0,
         "min_steps": 0,
         "max_steps": None,
-        "mode": "min",
+        "mode": "minimize",
         "baseline": None
     }
     early_stop_check = early_stopping.EarlyStopping(
@@ -86,7 +86,7 @@ class EarlyStoppingTest(absltest.TestCase):
         "patience": 1,
         "min_steps": 0,
         "max_steps": None,
-        "mode": "max",
+        "mode": "maximize",
         "baseline": None
     }
     early_stop_check = early_stopping.EarlyStopping(
@@ -106,7 +106,7 @@ class EarlyStoppingTest(absltest.TestCase):
         "patience": 0,
         "min_steps": 2,
         "max_steps": None,
-        "mode": "max",
+        "mode": "maximize",
         "baseline": None
     }
     early_stop_check = early_stopping.EarlyStopping(
@@ -129,7 +129,7 @@ class EarlyStoppingTest(absltest.TestCase):
         "patience": 0,
         "min_steps": 0,
         "max_steps": 2,
-        "mode": "min",
+        "mode": "minimize",
         "baseline": None
     }
     early_stop_check = early_stopping.EarlyStopping(
@@ -153,7 +153,7 @@ class EarlyStoppingTest(absltest.TestCase):
         "patience": 0,
         "min_steps": 0,
         "max_steps": None,
-        "mode": "min",
+        "mode": "minimize",
         "baseline": 1
     }
     early_stop_check = early_stopping.EarlyStopping(
