@@ -83,6 +83,7 @@ class LibriSpeechWorkload(spec.Workload):
       raise ValueError('Received unsupported dataset split "{}".'.format(split))
 
     ds = input_pipeline.LibriSpeechDataset(os.path.join(data_dir, filename))
+    pad_collate = ds.pad_collate
     if split == 'eval_train':
       ds, _ = data_utils.random_split(
           ds,
@@ -95,7 +96,7 @@ class LibriSpeechWorkload(spec.Workload):
         shuffle=is_train,
         num_workers=2,
         pin_memory=True,
-        collate_fn=ds.pad_collate)
+        collate_fn=pad_collate)
     return iter(loader)
 
   @property

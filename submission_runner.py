@@ -25,6 +25,8 @@ import tensorflow as tf
 import torch
 import torch.distributed as dist
 
+import datetime
+
 from algorithmic_efficiency import halton
 from algorithmic_efficiency import random_utils as prng
 from algorithmic_efficiency import spec
@@ -188,8 +190,12 @@ def train_once(workload: spec.Workload,
   training_complete = False
   global_start_time = time.time()
 
+  last_time = datetime.datetime.now()
+  print(last_time)
+
   logging.info('Starting training loop.')
   while (is_time_remaining and not goal_reached and not training_complete):
+
     step_rng = prng.fold_in(rng, global_step)
     data_select_rng, update_rng, eval_rng = prng.split(step_rng, 3)
     start_time = time.time()
@@ -213,6 +219,12 @@ def train_once(workload: spec.Workload,
           eval_results=eval_results,
           global_step=global_step,
           rng=update_rng)
+
+      this_time = datetime.datetime.now()
+      tdelta = this_time - last_time
+      print(tdelta)
+      last_time = this_time
+
     except spec.TrainingCompleteError:
       training_complete = True
     global_step += 1
@@ -221,20 +233,20 @@ def train_once(workload: spec.Workload,
     is_time_remaining = (
         accumulated_submission_time < workload.max_allowed_runtime_sec)
     # Check if submission is eligible for an untimed eval.
-    if (current_time - last_eval_time >= workload.eval_period_time_sec or
-        training_complete):
-      latest_eval_result = workload.eval_model(global_batch_size,
-                                               model_params,
-                                               model_state,
-                                               eval_rng,
-                                               data_dir)
-      logging.info('%.2fs \t%d \t%s',
-                   current_time - global_start_time,
-                   global_step,
-                   latest_eval_result)
-      last_eval_time = current_time
-      eval_results.append((global_step, latest_eval_result))
-      goal_reached = workload.has_reached_goal(latest_eval_result)
+    # if (current_time - last_eval_time >= workload.eval_period_time_sec or
+    #     training_complete):
+      # latest_eval_result = workload.eval_model(global_batch_size,
+      #                                          model_params,
+      #                                          model_state,
+      #                                          eval_rng,
+      #                                          data_dir)
+      # logging.info('%.2fs \t%d \t%s',
+      #              current_time - global_start_time,
+      #              global_step,
+      #              latest_eval_result)
+      # last_eval_time = current_time
+      # eval_results.append((global_step, latest_eval_result))
+      # goal_reached = workload.has_reached_goal(latest_eval_result)
   metrics = {'eval_results': eval_results, 'global_step': global_step}
   return accumulated_submission_time, metrics
 
