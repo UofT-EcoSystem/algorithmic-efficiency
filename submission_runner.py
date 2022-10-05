@@ -193,6 +193,21 @@ def train_once(workload: spec.Workload,
   last_time = datetime.datetime.now()
   print(last_time)
 
+  profiler = torch.profiler.profile(
+    activities=[
+        torch.profiler.ProfilerActivity.CPU,
+        torch.profiler.ProfilerActivity.CUDA],
+    schedule=torch.profiler.schedule(
+        wait=3,
+        warmup=3,
+        active=1),
+    on_trace_ready=torch.profiler.tensorboard_trace_handler('./result', worker_name='worker0'),
+    record_shapes=False,
+    profile_memory=False,
+    with_stack=False
+  )
+
+
   logging.info('Starting training loop.')
   while (is_time_remaining and not goal_reached and not training_complete):
 
@@ -222,8 +237,14 @@ def train_once(workload: spec.Workload,
 
       this_time = datetime.datetime.now()
       tdelta = this_time - last_time
-      print(tdelta)
+      logging.info(f'tdelta: {tdelta}')
       last_time = this_time
+
+      profiler.step()
+      logging.info(f'global_step: {global_step}\n')
+      if global_step == 6:
+        import sys
+        sys.exit(0)
 
     except spec.TrainingCompleteError:
       training_complete = True
