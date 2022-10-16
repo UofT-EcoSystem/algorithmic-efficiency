@@ -31,6 +31,9 @@ from algorithmic_efficiency import halton
 from algorithmic_efficiency import random_utils as prng
 from algorithmic_efficiency import spec
 
+import hotline
+from IPython import embed
+
 # Hide any GPUs form TensorFlow. Otherwise TF might reserve memory and make
 # it unavailable to JAX.
 tf.config.experimental.set_visible_devices([], 'GPU')
@@ -198,13 +201,16 @@ def train_once(workload: spec.Workload,
         torch.profiler.ProfilerActivity.CPU,
         torch.profiler.ProfilerActivity.CUDA],
     schedule=torch.profiler.schedule(
+        # wait=0,
+        # warmup=0,
+        # active=1),
         wait=3,
         warmup=3,
         active=1),
-    on_trace_ready=torch.profiler.tensorboard_trace_handler('./result', worker_name='worker0'),
-    record_shapes=False,
+    on_trace_ready=hotline.analyze(model_params, input_queue, run_name='rnn-t'),
+    record_shapes=True,
     profile_memory=False,
-    with_stack=False
+    with_stack=True
   )
 
 
