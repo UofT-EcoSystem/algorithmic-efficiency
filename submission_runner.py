@@ -257,6 +257,33 @@ def train_once(
   training_complete = False
   global_start_time = time.time()
 
+
+  # Hotline profiling
+  import hotline
+  from IPython import embed
+  import datetime
+
+  last_time = datetime.datetime.now()
+  print(last_time)
+
+  torch_profiler = torch.profiler.profile(
+    activities=[
+        torch.profiler.ProfilerActivity.CPU,
+        torch.profiler.ProfilerActivity.CUDA],
+    schedule=torch.profiler.schedule(
+        # wait=0,
+        # warmup=0,
+        # active=1),
+        wait=3,
+        warmup=3,
+        active=1),
+    on_trace_ready=hotline.analyze(model_params, input_queue, run_name='wmt-transformer-4xGPUs'),
+    record_shapes=True,
+    profile_memory=False,
+    with_stack=False
+  )
+
+
   logging.info('Starting training loop.')
   while is_time_remaining and not goal_reached and not training_complete:
     step_rng = prng.fold_in(rng, global_step)
@@ -286,6 +313,17 @@ def train_once(
             eval_results=eval_results,
             global_step=global_step,
             rng=update_rng)
+
+      this_time = datetime.datetime.now()
+      tdelta = this_time - last_time
+      logging.info(f'tdelta: {tdelta}')
+      last_time = this_time
+      torch_profiler.step()
+      logging.info(f'global_step: {global_step}\n')
+      if global_step == 6:
+        import sys
+        sys.exit(0)
+
     except spec.TrainingCompleteError:
       training_complete = True
     global_step += 1
