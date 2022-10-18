@@ -131,10 +131,14 @@ class Transformer(nn.Module):
                nhead: int = 16,
                d_hid: int = 4096,
                nlayers: int = 6,
+              #  nhead: int = 2,
+              #  d_hid: int = 64,
+              #  nlayers: int = 2,
                dropout_rate: float = 0.1,
                attention_dropout_rate: float = 0.1,
                layer_norm_eps: float = 1e-6):
     super().__init__()
+    print('less params')
     self.pos_encoder = PositionalEncoding(d_model, dropout_rate)
     self.shared_embedding = nn.Embedding(ntoken, d_model)
     self.encoder = Encoder(d_model,

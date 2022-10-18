@@ -235,6 +235,8 @@ def train_once(
   with profiler.profile('Initializing model'):
     model_params, model_state = workload.init_model_fn(model_init_rng)
   logging.info('Initializing optimizer.')
+  # from IPython import embed
+  # embed()
 
   with profiler.profile('Initializing optimizer'):
     optimizer_state = init_optimizer_state(workload,
@@ -323,6 +325,7 @@ def train_once(
       if global_step == 6:
         import sys
         sys.exit(0)
+      continue
 
     except spec.TrainingCompleteError:
       training_complete = True

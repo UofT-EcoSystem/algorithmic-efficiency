@@ -263,8 +263,16 @@ def get_wmt_dataset(data_rng,
     ds_name = 'wmt14_translate/de-en:1.0.0'
   else:
     ds_name = 'wmt17_translate/de-en:1.0.0'
-  dataset_builder = tfds.builder(ds_name, data_dir=data_dir)
-  # dataset_builder.download_and_prepare()
+  config = tfds.translate.wmt.WmtConfig(
+    version="0.0.1",
+    language_pair=("de", "en"),
+    subsets={
+        tfds.Split.TRAIN: ["rapid_2016"],
+        tfds.Split.VALIDATION: ["newstest2016"],
+    },
+  )
+  dataset_builder = tfds.builder('wmt_translate', data_dir=data_dir, config=config)
+  dataset_builder.download_and_prepare()
   ds = dataset_builder.as_dataset(split=split, shuffle_files=False)
 
   # Avoid creating too many threads when using PyTorch DDP.
