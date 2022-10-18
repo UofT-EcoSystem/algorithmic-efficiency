@@ -208,9 +208,9 @@ def train_once(workload: spec.Workload,
         warmup=3,
         active=1),
     on_trace_ready=hotline.analyze(model_params, input_queue, run_name='rnn-t'),
-    record_shapes=True,
+    record_shapes=False,
     profile_memory=False,
-    with_stack=True
+    with_stack=False
   )
 
 
@@ -251,6 +251,7 @@ def train_once(workload: spec.Workload,
       if global_step == 6:
         import sys
         sys.exit(0)
+      continue
 
     except spec.TrainingCompleteError:
       training_complete = True
