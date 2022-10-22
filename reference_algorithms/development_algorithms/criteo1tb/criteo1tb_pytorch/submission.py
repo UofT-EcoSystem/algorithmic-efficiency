@@ -9,7 +9,13 @@ from algorithmic_efficiency import spec
 
 
 def get_batch_size(workload_name):
-  batch_sizes = {'criteo1tb': 524_288}
+#   batch_sizes = {'criteo1tb': 524_288}
+#   batch_sizes = {'criteo1tb': 262_144}
+  batch_sizes = {'criteo1tb': 131_072}  # most on 1x RTX 2080Ti
+#   batch_sizes = {'criteo1tb': 65_536}
+#   batch_sizes = {'criteo1tb': 32_768}
+#   batch_sizes = {'criteo1tb': 4}
+  print(batch_sizes)
   return batch_sizes[workload_name]
 
 
@@ -74,6 +80,8 @@ def update_params(workload: spec.Workload,
       model_state=model_state,
       mode=spec.ForwardPassMode.TRAIN,
       rng=rng,
+      dropout_rate=0.0,
+      aux_dropout_rate=0.0,
       update_batch_norm=False)
 
   loss = workload.loss_fn(
