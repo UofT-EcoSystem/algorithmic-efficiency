@@ -15,9 +15,17 @@ import torch
 from algorithmic_efficiency.interop_utils import jax_to_pytorch
 from algorithmic_efficiency.pytorch_utils import pytorch_setup
 
+def safe_list_get (l, idx, default):
+  try:
+    return l[idx]
+  except IndexError:
+    return default
+
+
 # Constants
 RANK = pytorch_setup()[1]
-DEVICE = jax.devices()[RANK]
+# DEVICE = jax.devices()[RANK]
+DEVICE = safe_list_get(jax.devices(),RANK,0)
 # We assume the default End-of-Sentence token id is 2 (SentencePiece).
 EOS_ID = 2
 # "Effective negative infinity" constant for masking in beam search.

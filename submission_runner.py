@@ -279,8 +279,8 @@ def train_once(
         wait=3,
         warmup=3,
         active=1),
-    on_trace_ready=hotline.analyze(model_params, input_queue, run_name='criteo-dlrm-1xGPU'),
-    record_shapes=True,
+    on_trace_ready=hotline.analyze(model_params, input_queue, run_name='resnet9-2xGPU-DDP'),
+    record_shapes=False,
     profile_memory=False,
     with_stack=False
   )

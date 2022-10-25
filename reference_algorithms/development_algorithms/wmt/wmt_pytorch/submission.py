@@ -9,6 +9,7 @@ from algorithmic_efficiency import spec
 def get_batch_size(workload_name):
   # batch_sizes = {'wmt': 2}
   batch_sizes = {'wmt': 32 }
+  # batch_sizes = {'wmt': 128 }
   print(batch_sizes)
   return batch_sizes[workload_name]
 
