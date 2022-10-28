@@ -279,7 +279,7 @@ def train_once(
         wait=3,
         warmup=3,
         active=1),
-    on_trace_ready=hotline.analyze(model_params, input_queue, run_name='resnet9-2xGPU-DDP'),
+    on_trace_ready=hotline.analyze(model_params, input_queue, run_name='current'),
     record_shapes=False,
     profile_memory=False,
     with_stack=False
@@ -325,6 +325,7 @@ def train_once(
       if global_step == 6:
         import sys
         sys.exit(0)
+      global_step += 1
       continue
 
     except spec.TrainingCompleteError:

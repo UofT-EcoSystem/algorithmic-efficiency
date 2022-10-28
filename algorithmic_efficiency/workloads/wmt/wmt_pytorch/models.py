@@ -12,6 +12,14 @@ from torch.nn.init import normal_
 from torch.nn.init import xavier_uniform_
 
 
+from IPython import embed
+
+# nn.Dropout = nn.Identity
+# nn.LayerNorm = nn.Identity
+# nn.MultiheadAttention = nn.Identity
+# nn.TransformerEncoderLayer = nn.Identity
+# nn.MultiheadAttention = nn.Identity
+
 # Mask making utilities ported to PyTorch from
 # https://github.com/google/flax/blob/main/flax/linen/attention.py
 def make_attention_mask(query_input: Tensor,
@@ -128,12 +136,12 @@ class Transformer(nn.Module):
   def __init__(self,
                ntoken: int = 32000,
                d_model: int = 1024,
-              #  nhead: int = 16,
-              #  d_hid: int = 4096,
-              #  nlayers: int = 6,
-               nhead: int = 2,
-               d_hid: int = 64,
-               nlayers: int = 2,
+               nhead: int = 16,
+               d_hid: int = 4096,
+               nlayers: int = 6,
+              #  nhead: int = 2,
+              #  d_hid: int = 64,
+              #  nlayers: int = 2,
                dropout_rate: float = 0.1,
                attention_dropout_rate: float = 0.1,
                layer_norm_eps: float = 1e-6):
@@ -232,11 +240,13 @@ class Encoder(nn.Module):
         layer_norm_eps=layer_norm_eps)
     encoder_norm = nn.LayerNorm(d_model, eps=layer_norm_eps)
     self.encoder = nn.TransformerEncoder(encoder_layer, nlayers, encoder_norm)
+    # self.encoder = nn.TransformerEncoder(encoder_layer, nlayers)
 
   def forward(self,
               src: Tensor,
               inputs_positions: Optional[Tensor] = None,
               inputs_segmentation: Optional[Tensor] = None) -> Tensor:
+    # return src
     src = src.to(torch.int)
     src_mask = make_src_mask(src, inputs_segmentation, self.nhead)
     src = self.shared_embedding(src)
@@ -278,17 +288,22 @@ class Decoder(nn.Module):
       decode: bool = False,
       max_len: Optional[int] = None,
       cache: Optional[dict] = None) -> Tensor:
+    # # input float32(32, 256, 1024)
+    # output = torch.zeros((32, 256, 32000), device='cuda:0', dtype=torch.float32, requires_grad=True)
+    # return output
+
     tgt = tgt.to(torch.int)
     tgt_mask, memory_mask = make_tgt_and_memory_mask(
         tgt, src, inputs_segmentation, targets_segmentation,
         decode, self.nhead)
     if not decode:
       tgt = shift_right(tgt)
-    tgt = self.shared_embedding(tgt)
-    tgt = self.pos_encoder(tgt, targets_positions, decode=decode, cache=cache)
+    tgt = self.shared_embedding(tgt) # ret float32(32, 256, 1024)
+    # tgt = torch.zeros((32, 256, 1024), device='cuda:0', dtype=torch.float32, requires_grad=True)
+    tgt = self.pos_encoder(tgt, targets_positions, decode=decode, cache=cache) # ret float32(32, 256)
     if decode:
       tgt, cache = tgt
-    output = self.decoder(
+    output = self.decoder(  # ret float32(32, 256, 1024)
         tgt,
         memory,
         tgt_mask=tgt_mask,
@@ -299,10 +314,13 @@ class Decoder(nn.Module):
     if decode:
       output, cache = output
     normalize = math.sqrt(output.shape[-1])
-    output = torch.matmul(output, self.shared_embedding.weight.T) / normalize
+    output = torch.matmul(output, self.shared_embedding.weight.T) / normalize  # ret float32(32, 256, 32000)
+    # tgt = torch.zeros((32, 256, 1024), device='cuda:0', dtype=torch.float32, requires_grad=True)
+    # output = torch.matmul(tgt, self.shared_embedding.weight.T) # my modification
     if decode:
       return output, cache
-    return output
+    # output = torch.zeros((32, 256, 32000), device='cuda:0', dtype=torch.float32, requires_grad=True)
+    return output    # ret float32(32, 256, 32000)
 
 
 class PositionalEncoding(nn.Module):
@@ -338,6 +356,7 @@ class PositionalEncoding(nn.Module):
     Returns:
       Tensor or Tuple[Tensor, Dict[str, Dict[str, Tensor]]]
     """
+    # return x
     # We use a cache position index for tracking decoding position.
     if decode:
       name = self._get_name()
@@ -810,6 +829,15 @@ class MultiheadAttention(nn.MultiheadAttention):
       .. note::
           `batch_first` argument is ignored for unbatched inputs.
     """
+    # attn_output = torch.zeros((256, 32, 1024), device='cuda:0', dtype=torch.float32)
+    # is_batched = query.dim() == 3
+    # attn_output_weights = None
+    # cache = None
+    # if self.batch_first and is_batched:
+    #   return attn_output.transpose(1, 0), attn_output_weights, cache
+    # else:
+    #   return attn_output, attn_output_weights, cache
+
     del key_padding_mask
     is_batched = query.dim() == 3
     if self.batch_first and is_batched:
