@@ -6,6 +6,9 @@ import torch
 from algorithmic_efficiency import spec
 
 
+import hotline
+
+
 def get_batch_size(workload_name):
   # batch_sizes = {'wmt': 2}
   batch_sizes = {'wmt': 32 }
@@ -119,28 +122,35 @@ def update_params(workload: spec.Workload,
   current_model = current_param_container
   current_param_container.train()
   optimizer = optimizer_state['optimizer']
-  optimizer.zero_grad()
 
-  logits, _ = workload.model_fn(
-      params=current_model,
-      augmented_and_preprocessed_input_batch=batch,
-      model_state=model_state,
-      mode=spec.ForwardPassMode.TRAIN,
-      rng=rng,
-      dropout_rate=dropout_rate,
-      aux_dropout_rate=attention_dropout_rate,
-      update_batch_norm=False)
+  with hotline.annotate('Forward'):
+    logits, _ = workload.model_fn(
+        params=current_model,
+        augmented_and_preprocessed_input_batch=batch,
+        model_state=model_state,
+        mode=spec.ForwardPassMode.TRAIN,
+        rng=rng,
+        dropout_rate=dropout_rate,
+        aux_dropout_rate=attention_dropout_rate,
+        update_batch_norm=False)
 
-  targets = batch['targets']
-  weights = torch.where(targets > 0, 1.0, 0.0)
-  loss = (workload.loss_fn(targets, logits, label_smoothing=0.1) *
-          weights).sum() / weights.sum()
-  loss.backward()
+  with hotline.annotate('Calc Loss'):
+    targets = batch['targets']
+    weights = torch.where(targets > 0, 1.0, 0.0)
+    loss = (workload.loss_fn(targets, logits, label_smoothing=0.1) *
+            weights).sum() / weights.sum()
 
-  lr = optimizer_state['scheduler'](global_step).item()
-  for g in optimizer.param_groups:
-    g['lr'] = lr
-  optimizer.step()
+  with hotline.annotate('Zero Grad'):
+    optimizer.zero_grad()
+
+  with hotline.annotate('Backward'):
+    loss.backward()
+
+  with hotline.annotate('Optimizer'):
+    lr = optimizer_state['scheduler'](global_step).item()
+    for g in optimizer.param_groups:
+      g['lr'] = lr
+    optimizer.step()
 
   return (optimizer_state, current_param_container, None)
 
@@ -166,4 +176,5 @@ def data_selection(workload: spec.Workload,
   del hyperparameters
   del global_step
   del rng
-  return next(input_queue)
+  with hotline.annotate('Load Data'):
+    return next(input_queue)

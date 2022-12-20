@@ -264,6 +264,28 @@ def train_once(
   import hotline
   from IPython import embed
   import datetime
+  """ Usage:
+sudo apt-get install python3-venv
+python3 -m venv env
+source env/bin/activate
+
+pip3 install -e '.[jax_cpu]'
+pip3 install -e '.[pytorch_gpu]' -f 'https://download.pytorch.org/whl/torch_stable.html'
+pip3 install -e '.[full]'
+
+pip install -e /home/dans/cpath
+
+export CUDA_VISIBLE_DEVICES=0,1
+
+source env/bin/activate
+kill %; python3 submission_runner.py \
+    --framework=pytorch \
+    --workload=wmt \
+    --experiment_dir=/home/dans/algorithmic-efficiency/experiment_dir \
+    --submission_path=reference_algorithms/development_algorithms/wmt/wmt_pytorch/submission.py \
+    --tuning_search_space=reference_algorithms/development_algorithms/wmt/tuning_search_space.json \
+    --data_dir=/FS1/dataset/wmt17_translate
+  """
 
   last_time = datetime.datetime.now()
   print(last_time)
@@ -279,7 +301,12 @@ def train_once(
         wait=3,
         warmup=3,
         active=1),
-    on_trace_ready=hotline.analyze(model_params, input_queue, run_name='current'),
+    on_trace_ready=hotline.analyze(
+        model_params,
+        input_queue,
+        run_name='current',
+        test_accuracy=True
+    ),
     record_shapes=False,
     profile_memory=False,
     with_stack=False
@@ -320,8 +347,9 @@ def train_once(
       tdelta = this_time - last_time
       logging.info(f'tdelta: {tdelta}')
       last_time = this_time
-      torch_profiler.step()
       logging.info(f'global_step: {global_step}\n')
+      torch_profiler.step()
+      hotline.annotate.step()
       if global_step == 6:
         import sys
         sys.exit(0)

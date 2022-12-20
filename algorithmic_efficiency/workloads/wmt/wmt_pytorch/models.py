@@ -12,6 +12,8 @@ from torch.nn.init import normal_
 from torch.nn.init import xavier_uniform_
 
 
+import hotline
+
 from IPython import embed
 
 # nn.Dropout = nn.Identity
@@ -136,12 +138,12 @@ class Transformer(nn.Module):
   def __init__(self,
                ntoken: int = 32000,
                d_model: int = 1024,
-               nhead: int = 16,
-               d_hid: int = 4096,
-               nlayers: int = 6,
-              #  nhead: int = 2,
-              #  d_hid: int = 64,
-              #  nlayers: int = 2,
+              #  nhead: int = 16,
+              #  d_hid: int = 4096,
+              #  nlayers: int = 6,
+               nhead: int = 2,
+               d_hid: int = 64,
+               nlayers: int = 2,
                dropout_rate: float = 0.1,
                attention_dropout_rate: float = 0.1,
                layer_norm_eps: float = 1e-6):
