@@ -290,6 +290,7 @@ kill %; python3 submission_runner.py \
   last_time = datetime.datetime.now()
   print(last_time)
 
+  model_params = torch.nn.DataParallel(model_params)
   torch_profiler = torch.profiler.profile(
     activities=[
         torch.profiler.ProfilerActivity.CPU,
@@ -305,7 +306,8 @@ kill %; python3 submission_runner.py \
         model_params,
         input_queue,
         run_name='current',
-        test_accuracy=True
+        test_accuracy=True,
+        output_dir='/home/dans/cpath',
     ),
     record_shapes=False,
     profile_memory=False,
