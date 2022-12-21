@@ -5,8 +5,8 @@ import warnings
 import torch
 from torch import nn
 from torch import Tensor
-from torch.nn.functional import _in_projection
-from torch.nn.functional import _scaled_dot_product_attention
+# from torch.nn.functional import _in_projection
+# from torch.nn.functional import _scaled_dot_product_attention
 import torch.nn.functional as F
 from torch.nn.init import normal_
 from torch.nn.init import xavier_uniform_
@@ -251,7 +251,7 @@ class Encoder(nn.Module):
               inputs_positions: Optional[Tensor] = None,
               inputs_segmentation: Optional[Tensor] = None) -> Tensor:
     # return src
-    with hotline.annotate('SharedEmbedding'):
+    with hotline.annotate('Embedding'):
       src = src.to(torch.int)
       src_mask = make_src_mask(src, inputs_segmentation, self.nhead)
       src = self.shared_embedding(src)
@@ -298,7 +298,7 @@ class Decoder(nn.Module):
     # # input float32(32, 256, 1024)
     # output = torch.zeros((32, 256, 32000), device='cuda:0', dtype=torch.float32, requires_grad=True)
     # return output
-    with hotline.annotate('SharedEmbedding'):
+    with hotline.annotate('Embedding'):
       tgt = tgt.to(torch.int)
       tgt_mask, memory_mask = make_tgt_and_memory_mask(
           tgt, src, inputs_segmentation, targets_segmentation,
@@ -368,25 +368,30 @@ class PositionalEncoding(nn.Module):
     """
     # return x
     # We use a cache position index for tracking decoding position.
-    if decode:
-      name = self._get_name()
-      if cache is None:
-        cache = {
-            name: {
-                'cache_index':
-                    torch.tensor(0, dtype=torch.long, device=self.pe.device)
-            }
-        }
-      pe = self.pe[0, cache[name]['cache_index'], :]
-      cache[name]['cache_index'] += 1
-      return self.dropout(x + pe), cache
-    if inputs_positions is None:
-      # normal unpacked case:
-      pe = self.pe[:, :x.size(1), :]
-    else:
-      # for packed data we need to use known position indices:
-      pe = self.pe[0, inputs_positions, :]
-    return self.dropout(x + pe)
+    # with hotline.annotate('Index'):
+    with hotline.annotate('Dropout'):
+      if decode:
+        name = self._get_name()
+        if cache is None:
+          cache = {
+              name: {
+                  'cache_index':
+                      torch.tensor(0, dtype=torch.long, device=self.pe.device)
+              }
+          }
+        pe = self.pe[0, cache[name]['cache_index'], :]
+        cache[name]['cache_index'] += 1
+        return self.dropout(x + pe), cache
+      if inputs_positions is None:
+        # normal unpacked case:
+        pe = self.pe[:, :x.size(1), :]
+      else:
+        # for packed data we need to use known position indices:
+        pe = self.pe[0, inputs_positions, :]
+
+    # with hotline.annotate('Add'):
+      x = x + pe
+      return self.dropout(x)
 
 
 # TransformerEncoderLayer and TransformerDecoderLayer are taken from:
@@ -460,6 +465,63 @@ class TransformerEncoderLayer(nn.TransformerEncoderLayer):
         bias=False,
         **factory_kwargs)
 
+  def forward(self, src: Tensor, src_mask: Optional[Tensor] = None, src_key_padding_mask: Optional[Tensor] = None) -> Tensor:
+      r"""Pass the input through the encoder layer.
+
+      Args:
+          src: the sequence to the encoder layer (required).
+          src_mask: the mask for the src sequence (optional).
+          src_key_padding_mask: the mask for the src keys per batch (optional).
+
+      Shape:
+          see the docs in Transformer class.
+      """
+
+      # see Fig. 1 of https://arxiv.org/pdf/2002.04745v1.pdf
+
+      x = src
+      if self.norm_first:
+          with hotline.annotate('LayerNorm'):
+            xx = self.norm1(x)
+          x = x + self._sa_block(xx, src_mask, src_key_padding_mask)
+          with hotline.annotate('LayerNorm'):
+            xx = self.norm2(x)
+          x = x + self._ff_block(xx)
+      else:
+          x = x + self._sa_block(x, src_mask, src_key_padding_mask)
+          with hotline.annotate('LayerNorm'):
+            x = self.norm1(x)
+          x = x + self._ff_block(x)
+          with hotline.annotate('LayerNorm'):
+            x = self.norm2(x)
+
+      return x
+
+  # self-attention block
+  def _sa_block(self, x: Tensor,
+                attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor]) -> Tensor:
+      with hotline.annotate('Self-Attention'):
+        x = self.self_attn(x, x, x,
+                            attn_mask=attn_mask,
+                            key_padding_mask=key_padding_mask,
+                            need_weights=False)[0]
+      with hotline.annotate('Dropout'):
+        return self.dropout1(x)
+
+  # feed forward block
+  def _ff_block(self, x: Tensor) -> Tensor:
+      with hotline.annotate('Feed-Forward'):
+        with hotline.annotate('linear'):
+          x = self.linear1(x)
+        with hotline.annotate('relu'):
+          x = self.activation(x)
+        with hotline.annotate('dropout'):
+          x = self.dropout(x)
+        with hotline.annotate('linear'):
+          x = self.linear2(x)
+        with hotline.annotate('dropout'):
+          x = self.dropout2(x)
+        return x
 
 # Modified to use cache for autoregressive decoding.
 class TransformerDecoder(nn.Module):
@@ -1144,15 +1206,15 @@ def multi_head_attention_forward(
     with hotline.annotate('scaled_dot_product_attention'):
       attn_output, attn_output_weights = _scaled_dot_product_attention(
           q, k, v, attn_mask, dropout_rate)
+    # with hotline.annotate('Contiguous'):
     with hotline.annotate('Linear'):
       attn_output = attn_output.transpose(0, 1).contiguous().view(
           tgt_len * bsz, embed_dim)
-    with hotline.annotate('Linear'):
       attn_output = F.linear(attn_output, out_proj_weight, out_proj_bias)
-    with hotline.annotate('View'):
+    # with hotline.annotate('View'):
       attn_output = attn_output.view(tgt_len, bsz, attn_output.size(1))
 
-  with hotline.annotate('after'):
+  with hotline.annotate('ignore after'):
     if need_weights:
       # optionally average attention weights over heads
       attn_output_weights = attn_output_weights.view(bsz,
@@ -1164,3 +1226,116 @@ def multi_head_attention_forward(
       return attn_output, attn_output_weights, cache
     else:
       return attn_output, None, cache
+
+
+
+def _scaled_dot_product_attention(
+    q: Tensor,
+    k: Tensor,
+    v: Tensor,
+    attn_mask: Optional[Tensor] = None,
+    dropout_p: float = 0.0,
+) -> Tuple[Tensor, Tensor]:
+    r"""
+    Computes scaled dot product attention on query, key and value tensors, using
+    an optional attention mask if passed, and applying dropout if a probability
+    greater than 0.0 is specified.
+    Returns a tensor pair containing attended values and attention weights.
+
+    Args:
+        q, k, v: query, key and value tensors. See Shape section for shape details.
+        attn_mask: optional tensor containing mask values to be added to calculated
+            attention. May be 2D or 3D; see Shape section for details.
+        dropout_p: dropout probability. If greater than 0.0, dropout is applied.
+
+    Shape:
+        - q: :math:`(B, Nt, E)` where B is batch size, Nt is the target sequence length,
+            and E is embedding dimension.
+        - key: :math:`(B, Ns, E)` where B is batch size, Ns is the source sequence length,
+            and E is embedding dimension.
+        - value: :math:`(B, Ns, E)` where B is batch size, Ns is the source sequence length,
+            and E is embedding dimension.
+        - attn_mask: either a 3D tensor of shape :math:`(B, Nt, Ns)` or a 2D tensor of
+            shape :math:`(Nt, Ns)`.
+
+        - Output: attention values have shape :math:`(B, Nt, E)`; attention weights
+            have shape :math:`(B, Nt, Ns)`
+    """
+    with hotline.annotate('Div'):
+      B, Nt, E = q.shape
+      q = q / math.sqrt(E)
+      # (B, Nt, E) x (B, E, Ns) -> (B, Nt, Ns)
+    with hotline.annotate('BatchedAddMatMul'):
+      if attn_mask is not None:
+          attn = torch.baddbmm(attn_mask, q, k.transpose(-2, -1))
+      else:
+          attn = torch.bmm(q, k.transpose(-2, -1))
+
+    with hotline.annotate('SoftMax'):
+      attn = F.softmax(attn, dim=-1)
+    with hotline.annotate('Dropout'):
+      if dropout_p > 0.0:
+          attn = F.dropout(attn, p=dropout_p)
+      # (B, Nt, Ns) x (B, Ns, E) -> (B, Nt, E)
+    with hotline.annotate('BatchMatMul'):
+      output = torch.bmm(attn, v)
+      return output, attn
+
+
+def _in_projection(
+  q: Tensor,
+  k: Tensor,
+  v: Tensor,
+  w_q: Tensor,
+  w_k: Tensor,
+  w_v: Tensor,
+  b_q: Optional[Tensor] = None,
+  b_k: Optional[Tensor] = None,
+  b_v: Optional[Tensor] = None,
+) -> Tuple[Tensor, Tensor, Tensor]:
+  r"""
+  Performs the in-projection step of the attention operation. This is simply
+  a triple of linear projections, with shape constraints on the weights which
+  ensure embedding dimension uniformity in the projected outputs.
+  Output is a triple containing projection tensors for query, key and value.
+
+  Args:
+      q, k, v: query, key and value tensors to be projected.
+      w_q, w_k, w_v: weights for q, k and v, respectively.
+      b_q, b_k, b_v: optional biases for q, k and v, respectively.
+
+  Shape:
+      Inputs:
+      - q: :math:`(Qdims..., Eq)` where Eq is the query embedding dimension and Qdims are any
+          number of leading dimensions.
+      - k: :math:`(Kdims..., Ek)` where Ek is the key embedding dimension and Kdims are any
+          number of leading dimensions.
+      - v: :math:`(Vdims..., Ev)` where Ev is the value embedding dimension and Vdims are any
+          number of leading dimensions.
+      - w_q: :math:`(Eq, Eq)`
+      - w_k: :math:`(Eq, Ek)`
+      - w_v: :math:`(Eq, Ev)`
+      - b_q: :math:`(Eq)`
+      - b_k: :math:`(Eq)`
+      - b_v: :math:`(Eq)`
+
+      Output: in output triple :math:`(q', k', v')`,
+        - q': :math:`[Qdims..., Eq]`
+        - k': :math:`[Kdims..., Eq]`
+        - v': :math:`[Vdims..., Eq]`
+
+  """
+  Eq, Ek, Ev = q.size(-1), k.size(-1), v.size(-1)
+  assert w_q.shape == (Eq, Eq), f"expecting query weights shape of {(Eq, Eq)}, but got {w_q.shape}"
+  assert w_k.shape == (Eq, Ek), f"expecting key weights shape of {(Eq, Ek)}, but got {w_k.shape}"
+  assert w_v.shape == (Eq, Ev), f"expecting value weights shape of {(Eq, Ev)}, but got {w_v.shape}"
+  assert b_q is None or b_q.shape == (Eq,), f"expecting query bias shape of {(Eq,)}, but got {b_q.shape}"
+  assert b_k is None or b_k.shape == (Eq,), f"expecting key bias shape of {(Eq,)}, but got {b_k.shape}"
+  assert b_v is None or b_v.shape == (Eq,), f"expecting value bias shape of {(Eq,)}, but got {b_v.shape}"
+  with hotline.annotate('Linear'):
+    q = F.linear(q, w_q, b_q)
+  with hotline.annotate('Linear'):
+    k = F.linear(k, w_k, b_k)
+  with hotline.annotate('Linear'):
+    v = F.linear(v, w_v, b_v)
+  return q, k, v
