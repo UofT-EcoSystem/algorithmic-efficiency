@@ -202,20 +202,22 @@ class Transformer(nn.Module):
     Returns:
       output Tensor of shape [batch_size, seq_len, ntoken]
     """
-    if src.size(0) != tgt.size(0):
-      raise RuntimeError('The batch size of src and tgt must be equal.')
-    memory = self.encoder(
-        src,
-        inputs_positions=inputs_positions,
-        inputs_segmentation=inputs_segmentation)
-    output = self.decoder(
-        tgt,
-        memory,
-        src,  # just for calculating the padding mask
-        targets_positions=targets_positions,
-        inputs_segmentation=inputs_segmentation,
-        targets_segmentation=targets_segmentation,
-        decode=decode)
+    with hotline.annotate('Encoder'):
+      if src.size(0) != tgt.size(0):
+        raise RuntimeError('The batch size of src and tgt must be equal.')
+      memory = self.encoder(
+          src,
+          inputs_positions=inputs_positions,
+          inputs_segmentation=inputs_segmentation)
+    with hotline.annotate('Decoder'):
+      output = self.decoder(
+          tgt,
+          memory,
+          src,  # just for calculating the padding mask
+          targets_positions=targets_positions,
+          inputs_segmentation=inputs_segmentation,
+          targets_segmentation=targets_segmentation,
+          decode=decode)
     return output
 
 
@@ -249,11 +251,14 @@ class Encoder(nn.Module):
               inputs_positions: Optional[Tensor] = None,
               inputs_segmentation: Optional[Tensor] = None) -> Tensor:
     # return src
-    src = src.to(torch.int)
-    src_mask = make_src_mask(src, inputs_segmentation, self.nhead)
-    src = self.shared_embedding(src)
-    src = self.pos_encoder(src, inputs_positions)
-    memory = self.encoder(src, mask=src_mask)
+    with hotline.annotate('SharedEmbedding'):
+      src = src.to(torch.int)
+      src_mask = make_src_mask(src, inputs_segmentation, self.nhead)
+      src = self.shared_embedding(src)
+    with hotline.annotate('PositionalEncoding'):
+      src = self.pos_encoder(src, inputs_positions)
+    with hotline.annotate('TransformerEncoder'):
+      memory = self.encoder(src, mask=src_mask)
     return memory
 
 
@@ -293,30 +298,33 @@ class Decoder(nn.Module):
     # # input float32(32, 256, 1024)
     # output = torch.zeros((32, 256, 32000), device='cuda:0', dtype=torch.float32, requires_grad=True)
     # return output
-
-    tgt = tgt.to(torch.int)
-    tgt_mask, memory_mask = make_tgt_and_memory_mask(
-        tgt, src, inputs_segmentation, targets_segmentation,
-        decode, self.nhead)
-    if not decode:
-      tgt = shift_right(tgt)
-    tgt = self.shared_embedding(tgt) # ret float32(32, 256, 1024)
-    # tgt = torch.zeros((32, 256, 1024), device='cuda:0', dtype=torch.float32, requires_grad=True)
-    tgt = self.pos_encoder(tgt, targets_positions, decode=decode, cache=cache) # ret float32(32, 256)
-    if decode:
-      tgt, cache = tgt
-    output = self.decoder(  # ret float32(32, 256, 1024)
-        tgt,
-        memory,
-        tgt_mask=tgt_mask,
-        memory_mask=memory_mask,
-        decode=decode,
-        max_len=max_len,
-        cache=cache)
-    if decode:
-      output, cache = output
-    normalize = math.sqrt(output.shape[-1])
-    output = torch.matmul(output, self.shared_embedding.weight.T) / normalize  # ret float32(32, 256, 32000)
+    with hotline.annotate('SharedEmbedding'):
+      tgt = tgt.to(torch.int)
+      tgt_mask, memory_mask = make_tgt_and_memory_mask(
+          tgt, src, inputs_segmentation, targets_segmentation,
+          decode, self.nhead)
+      if not decode:
+        tgt = shift_right(tgt)
+      tgt = self.shared_embedding(tgt) # ret float32(32, 256, 1024)
+      # tgt = torch.zeros((32, 256, 1024), device='cuda:0', dtype=torch.float32, requires_grad=True)
+    with hotline.annotate('PositionalEncoding'):
+      tgt = self.pos_encoder(tgt, targets_positions, decode=decode, cache=cache) # ret float32(32, 256)
+    with hotline.annotate('TransformerDecoder'):
+      if decode:
+        tgt, cache = tgt
+      output = self.decoder(  # ret float32(32, 256, 1024)
+          tgt,
+          memory,
+          tgt_mask=tgt_mask,
+          memory_mask=memory_mask,
+          decode=decode,
+          max_len=max_len,
+          cache=cache)
+      if decode:
+        output, cache = output
+      normalize = math.sqrt(output.shape[-1])
+    with hotline.annotate('Linear'):
+      output = torch.matmul(output, self.shared_embedding.weight.T) / normalize  # ret float32(32, 256, 32000)
     # tgt = torch.zeros((32, 256, 1024), device='cuda:0', dtype=torch.float32, requires_grad=True)
     # output = torch.matmul(tgt, self.shared_embedding.weight.T) # my modification
     if decode:
@@ -518,18 +526,20 @@ class TransformerDecoder(nn.Module):
     output = tgt
 
     for idx, mod in enumerate(self.layers):
-      output, cache = mod(
-          output,
-          memory,
-          tgt_mask=tgt_mask,
-          memory_mask=memory_mask,
-          decode=decode,
-          max_len=max_len,
-          cache=cache,
-          index=idx)
+      with hotline.annotate('TransformerDecoderLayer'):
+        output, cache = mod(
+            output,
+            memory,
+            tgt_mask=tgt_mask,
+            memory_mask=memory_mask,
+            decode=decode,
+            max_len=max_len,
+            cache=cache,
+            index=idx)
 
     if self.norm is not None:
-      output = self.norm(output)
+      with hotline.annotate('LayerNorm'):
+        output = self.norm(output)
 
     if decode:
       return output, cache
@@ -637,6 +647,7 @@ class TransformerDecoderLayer(nn.TransformerDecoderLayer):
     """
     # see Fig. 1 of https://arxiv.org/pdf/2002.04745v1.pdf
 
+    # IMPORTANT FUNCTION HERE TODO ANNOTATE
     x = tgt
     if self.norm_first:
       sa_out, cache = self._sa_block(
@@ -647,19 +658,23 @@ class TransformerDecoderLayer(nn.TransformerDecoderLayer):
           cache=cache,
           index=index)
       x = x + sa_out
-      x = x + self._mha_block(self.norm2(x), memory, memory_mask, None)
-      x = x + self._ff_block(self.norm3(x))
-    else:
-      sa_out, cache = self._sa_block(
-          x,
-          tgt_mask,
-          decode=decode,
-          max_len=max_len,
-          cache=cache,
-          index=index)
-      x = self.norm1(x + sa_out)
-      x = self.norm2(x + self._mha_block(x, memory, memory_mask, None))
-      x = self.norm3(x + self._ff_block(x))
+      with hotline.annotate('LayerNorm'):
+        x = self.norm2(x)
+      x = x + self._mha_block(x, memory, memory_mask, None)
+      with hotline.annotate('LayerNorm'):
+        x = self.norm3(x)
+      x = x + self._ff_block(x)
+    # else:
+    #   sa_out, cache = self._sa_block(
+    #       x,
+    #       tgt_mask,
+    #       decode=decode,
+    #       max_len=max_len,
+    #       cache=cache,
+    #       index=index)
+    #   x = self.norm1(x + sa_out)
+    #   x = self.norm2(x + self._mha_block(x, memory, memory_mask, None))
+    #   x = self.norm3(x + self._ff_block(x))
 
     return x, cache
 
@@ -672,17 +687,48 @@ class TransformerDecoderLayer(nn.TransformerDecoderLayer):
       max_len: Optional[int] = None,
       cache: Optional[dict] = None,
       index: Optional[int] = None) -> Tensor:
-    x, _, cache = self.self_attn(
-        x,
-        x,
-        x,
-        attn_mask=attn_mask,
-        need_weights=False,
-        decode=decode,
-        max_len=max_len,
-        cache=cache,
-        index=index)
-    return self.dropout1(x), cache
+    with hotline.annotate('Self-Attention'):
+      x, _, cache = self.self_attn(
+          x,
+          x,
+          x,
+          attn_mask=attn_mask,
+          need_weights=False,
+          decode=decode,
+          max_len=max_len,
+          cache=cache,
+          index=index)
+    with hotline.annotate('Dropout'):
+      out = self.dropout1(x)
+    return out, cache
+
+  # multihead attention block
+  def _mha_block(self, x: Tensor, mem: Tensor,
+                  attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor]) -> Tensor:
+      with hotline.annotate('Multihead-Attention'):
+        x = self.multihead_attn(x, mem, mem,
+                                attn_mask=attn_mask,
+                                key_padding_mask=key_padding_mask,
+                                need_weights=False)[0]
+      with hotline.annotate('Dropout'):
+        out = self.dropout2(x)
+      return out
+
+  # feed forward block
+  # From: /home/dans/.local/lib/python3.8/site-packages/torch/nn/modules/transformer.py
+  def _ff_block(self, x: Tensor) -> Tensor:
+      with hotline.annotate('Feed-Forward'):
+        with hotline.annotate('linear'):
+          x = self.linear1(x)
+        with hotline.annotate('relu'):
+          x = self.activation(x)
+        with hotline.annotate('dropout'):
+          x = self.dropout(x)
+        with hotline.annotate('linear'):
+          x = self.linear2(x)
+        with hotline.annotate('dropout'):
+          x = self.dropout3(x)
+      return x
 
 
 # Only difference to standard PyTorch class is that 'self._qkv_same_embed_dim'
@@ -856,16 +902,17 @@ class MultiheadAttention(nn.MultiheadAttention):
     name = f'decoder.layers.{index}.self_attn'
     loc_cache = cache[name] if decode and name in cache else None
 
-    attn_output, attn_output_weights, loc_cache = multi_head_attention_forward(
-        query, key, value, self.embed_dim, self.num_heads,
-        self.in_proj_bias, self.bias_k, self.bias_v,
-        self.dropout, self.out_proj.weight, self.out_proj.bias,
-        training=self.training, need_weights=need_weights, attn_mask=attn_mask,
-        q_proj_weight=self.q_proj_weight,
-        k_proj_weight=self.k_proj_weight,
-        v_proj_weight=self.v_proj_weight,
-        average_attn_weights=average_attn_weights,
-        decode=decode, cache=loc_cache, max_len=max_len)
+    with hotline.annotate('multi_head_attention_forward'):
+      attn_output, attn_output_weights, loc_cache = multi_head_attention_forward(
+          query, key, value, self.embed_dim, self.num_heads,
+          self.in_proj_bias, self.bias_k, self.bias_v,
+          self.dropout, self.out_proj.weight, self.out_proj.bias,
+          training=self.training, need_weights=need_weights, attn_mask=attn_mask,
+          q_proj_weight=self.q_proj_weight,
+          k_proj_weight=self.k_proj_weight,
+          v_proj_weight=self.v_proj_weight,
+          average_attn_weights=average_attn_weights,
+          decode=decode, cache=loc_cache, max_len=max_len)
 
     if decode:
       cache[name] = loc_cache
@@ -955,158 +1002,165 @@ def multi_head_attention_forward(
       per head of shape :math:`(num_heads, L, S)` when input is unbatched or
       :math:`(N, num_heads, L, S)`.
   """
-  # set up shape vars
-  tgt_len, bsz, embed_dim = query.shape
-  src_len, _, _ = key.shape
-  assert embed_dim == embed_dim_to_check, \
-      f"was expecting dimension of {embed_dim_to_check}, but got {embed_dim}"
-  if isinstance(embed_dim, torch.Tensor):
-    # embed_dim can be a tensor when JIT tracing
-    head_dim = embed_dim.div(num_heads, rounding_mode='trunc')
-  else:
-    head_dim = embed_dim // num_heads
-  assert head_dim * num_heads == embed_dim, \
-      f"embed_dim {embed_dim} not divisible by num_heads {num_heads}"
-  # allow MHA to have different embedding dimensions when separate projection
-  # weights are used
-  assert key.shape[:2] == value.shape[:2], \
-      (f"key's sequence and batch dims {key.shape[:2]} do not match value's "
-       f"{value.shape[:2]}")
-
-  # compute in-projection
-  assert q_proj_weight is not None, \
-      "use_separate_proj_weight is True but q_proj_weight is None"
-  assert k_proj_weight is not None, \
-      "use_separate_proj_weight is True but k_proj_weight is None"
-  assert v_proj_weight is not None, \
-      "use_separate_proj_weight is True but v_proj_weight is None"
-  if in_proj_bias is None:
-    b_q = b_k = b_v = None
-  else:
-    b_q, b_k, b_v = in_proj_bias.chunk(3)
-  q, k, v = _in_projection(
-      query, key, value, q_proj_weight, k_proj_weight,
-      v_proj_weight, b_q, b_k, b_v)
-
-  # During fast autoregressive decoding, we feed one position at a time,
-  # and cache the keys and values step by step.
-  if decode:
-    if cache is None:
-      cache = {
-          'cached_key':
-              torch.zeros((bsz, max_len, embed_dim),
-                          dtype=k.dtype,
-                          device=k.device),
-          'cached_value':
-              torch.zeros((bsz, max_len, embed_dim),
-                          dtype=v.dtype,
-                          device=v.device),
-          'cache_index':
-              torch.tensor(0, dtype=torch.long, device=k.device)
-      }
-    cached_key = cache['cached_key']
-    cached_value = cache['cached_value']
-    cache_index = cache['cache_index']
-    batch_size, max_length, num_features = cached_key.shape
-    assert batch_size == bsz, f'{batch_size} != {bsz}'
-    assert max_length == max_len, f'{max_length} != {max_len}'
-    assert num_features == embed_dim, f'{num_features} != {embed_dim}'
-    # shape check of cached keys against query input
-    expected_shape = (1, batch_size, num_features)
-    if expected_shape != query.shape:
-      raise ValueError('Autoregressive cache shape error, expected query shape '
-                       f'{expected_shape} instead got {query.shape}.')
-    # update key, value caches with our new 1d spatial slices
-    cached_key[:, cache_index:cache_index + 1, :] = k.transpose(dim0=0, dim1=1)
-    cached_value[:, cache_index:cache_index + 1, :] = v.transpose(
-        dim0=0, dim1=1)
-    k = cached_key.transpose(dim0=0, dim1=1)
-    v = cached_value.transpose(dim0=0, dim1=1)
-    cache_index += 1
-    # causal mask for cached decoder self-attention:
-    # our single query position should only attend to those key
-    # positions that have already been generated and cached,
-    # not the remaining zero elements.
-    if attn_mask is not None:
-      raise ValueError('Attention mask has to be None for decode == True.')
-    attn_mask = (torch.arange(max_length, device=k.device) >=
-                 cache_index).reshape(1, max_length)
-
-  # prep attention mask
-  if not decode and attn_mask is not None:
-    if attn_mask.dtype == torch.uint8:
-      warnings.warn(
-          "Byte tensor for attn_mask in nn.MultiheadAttention is deprecated."
-          "Use bool tensor instead.")
-      attn_mask = attn_mask.to(torch.bool)
+  with hotline.annotate("before"):
+    # set up shape vars
+    tgt_len, bsz, embed_dim = query.shape
+    src_len, _, _ = key.shape
+    assert embed_dim == embed_dim_to_check, \
+        f"was expecting dimension of {embed_dim_to_check}, but got {embed_dim}"
+    if isinstance(embed_dim, torch.Tensor):
+      # embed_dim can be a tensor when JIT tracing
+      head_dim = embed_dim.div(num_heads, rounding_mode='trunc')
     else:
-      assert attn_mask.is_floating_point() or attn_mask.dtype == torch.bool, \
-          f"float, byte, and bool types are supported, not {attn_mask.dtype}"
-    # ensure attn_mask's dim is 3
-    if attn_mask.dim() == 2:
-      correct_2d_size = (tgt_len, src_len)
-      if attn_mask.shape != correct_2d_size:
+      head_dim = embed_dim // num_heads
+    assert head_dim * num_heads == embed_dim, \
+        f"embed_dim {embed_dim} not divisible by num_heads {num_heads}"
+    # allow MHA to have different embedding dimensions when separate projection
+    # weights are used
+    assert key.shape[:2] == value.shape[:2], \
+        (f"key's sequence and batch dims {key.shape[:2]} do not match value's "
+        f"{value.shape[:2]}")
+
+    # compute in-projection
+    assert q_proj_weight is not None, \
+        "use_separate_proj_weight is True but q_proj_weight is None"
+    assert k_proj_weight is not None, \
+        "use_separate_proj_weight is True but k_proj_weight is None"
+    assert v_proj_weight is not None, \
+        "use_separate_proj_weight is True but v_proj_weight is None"
+    if in_proj_bias is None:
+      b_q = b_k = b_v = None
+    else:
+      b_q, b_k, b_v = in_proj_bias.chunk(3)
+    q, k, v = _in_projection(
+        query, key, value, q_proj_weight, k_proj_weight,
+        v_proj_weight, b_q, b_k, b_v)
+
+    # During fast autoregressive decoding, we feed one position at a time,
+    # and cache the keys and values step by step.
+    if decode:
+      if cache is None:
+        cache = {
+            'cached_key':
+                torch.zeros((bsz, max_len, embed_dim),
+                            dtype=k.dtype,
+                            device=k.device),
+            'cached_value':
+                torch.zeros((bsz, max_len, embed_dim),
+                            dtype=v.dtype,
+                            device=v.device),
+            'cache_index':
+                torch.tensor(0, dtype=torch.long, device=k.device)
+        }
+      cached_key = cache['cached_key']
+      cached_value = cache['cached_value']
+      cache_index = cache['cache_index']
+      batch_size, max_length, num_features = cached_key.shape
+      assert batch_size == bsz, f'{batch_size} != {bsz}'
+      assert max_length == max_len, f'{max_length} != {max_len}'
+      assert num_features == embed_dim, f'{num_features} != {embed_dim}'
+      # shape check of cached keys against query input
+      expected_shape = (1, batch_size, num_features)
+      if expected_shape != query.shape:
+        raise ValueError('Autoregressive cache shape error, expected query shape '
+                        f'{expected_shape} instead got {query.shape}.')
+      # update key, value caches with our new 1d spatial slices
+      cached_key[:, cache_index:cache_index + 1, :] = k.transpose(dim0=0, dim1=1)
+      cached_value[:, cache_index:cache_index + 1, :] = v.transpose(
+          dim0=0, dim1=1)
+      k = cached_key.transpose(dim0=0, dim1=1)
+      v = cached_value.transpose(dim0=0, dim1=1)
+      cache_index += 1
+      # causal mask for cached decoder self-attention:
+      # our single query position should only attend to those key
+      # positions that have already been generated and cached,
+      # not the remaining zero elements.
+      if attn_mask is not None:
+        raise ValueError('Attention mask has to be None for decode == True.')
+      attn_mask = (torch.arange(max_length, device=k.device) >=
+                  cache_index).reshape(1, max_length)
+
+    # prep attention mask
+    if not decode and attn_mask is not None:
+      if attn_mask.dtype == torch.uint8:
+        warnings.warn(
+            "Byte tensor for attn_mask in nn.MultiheadAttention is deprecated."
+            "Use bool tensor instead.")
+        attn_mask = attn_mask.to(torch.bool)
+      else:
+        assert attn_mask.is_floating_point() or attn_mask.dtype == torch.bool, \
+            f"float, byte, and bool types are supported, not {attn_mask.dtype}"
+      # ensure attn_mask's dim is 3
+      if attn_mask.dim() == 2:
+        correct_2d_size = (tgt_len, src_len)
+        if attn_mask.shape != correct_2d_size:
+          raise RuntimeError(
+              f"The shape of the 2D attn_mask is {attn_mask.shape}, "
+              f"but should be {correct_2d_size}.")
+        attn_mask = attn_mask.unsqueeze(0)
+      elif attn_mask.dim() == 3:
+        correct_3d_size = (bsz * num_heads, tgt_len, src_len)
+        if attn_mask.shape != correct_3d_size:
+          raise RuntimeError(f"The shape of attn_mask is {attn_mask.shape}, "
+                            f"should be {correct_3d_size}.")
+      else:
         raise RuntimeError(
-            f"The shape of the 2D attn_mask is {attn_mask.shape}, "
-            f"but should be {correct_2d_size}.")
-      attn_mask = attn_mask.unsqueeze(0)
-    elif attn_mask.dim() == 3:
-      correct_3d_size = (bsz * num_heads, tgt_len, src_len)
-      if attn_mask.shape != correct_3d_size:
-        raise RuntimeError(f"The shape of attn_mask is {attn_mask.shape}, "
-                           f"should be {correct_3d_size}.")
+            f"attn_mask's dimension {attn_mask.dim()} is not supported")
+
+    # add bias along batch dimension (currently second)
+    if bias_k is not None and bias_v is not None:
+      k = torch.cat([k, bias_k.repeat(1, bsz, 1)])
+      v = torch.cat([v, bias_v.repeat(1, bsz, 1)])
+      if attn_mask is not None:
+        attn_mask = F.pad(attn_mask, (0, 1))
     else:
-      raise RuntimeError(
-          f"attn_mask's dimension {attn_mask.dim()} is not supported")
+      assert bias_k is None
+      assert bias_v is None
 
-  # add bias along batch dimension (currently second)
-  if bias_k is not None and bias_v is not None:
-    k = torch.cat([k, bias_k.repeat(1, bsz, 1)])
-    v = torch.cat([v, bias_v.repeat(1, bsz, 1)])
-    if attn_mask is not None:
-      attn_mask = F.pad(attn_mask, (0, 1))
-  else:
-    assert bias_k is None
-    assert bias_v is None
+    #
+    # reshape q, k, v for multihead attention and make em batch first
+    #
+    q = q.contiguous().view(tgt_len, bsz * num_heads, head_dim).transpose(0, 1)
+    k = k.contiguous().view(k.shape[0], bsz * num_heads, head_dim).transpose(0, 1)
+    v = v.contiguous().view(v.shape[0], bsz * num_heads, head_dim).transpose(0, 1)
 
-  #
-  # reshape q, k, v for multihead attention and make em batch first
-  #
-  q = q.contiguous().view(tgt_len, bsz * num_heads, head_dim).transpose(0, 1)
-  k = k.contiguous().view(k.shape[0], bsz * num_heads, head_dim).transpose(0, 1)
-  v = v.contiguous().view(v.shape[0], bsz * num_heads, head_dim).transpose(0, 1)
+    # update source sequence length after adjustments
+    src_len = k.size(1)
 
-  # update source sequence length after adjustments
-  src_len = k.size(1)
+    # convert mask to float
+    if attn_mask is not None and attn_mask.dtype == torch.bool:
+      new_attn_mask = torch.zeros_like(attn_mask, dtype=q.dtype)
+      new_attn_mask.masked_fill_(attn_mask, -1e10)
+      attn_mask = new_attn_mask
 
-  # convert mask to float
-  if attn_mask is not None and attn_mask.dtype == torch.bool:
-    new_attn_mask = torch.zeros_like(attn_mask, dtype=q.dtype)
-    new_attn_mask.masked_fill_(attn_mask, -1e10)
-    attn_mask = new_attn_mask
-
-  # adjust dropout_rate probability
-  if not training:
-    dropout_rate = 0.0
+    # adjust dropout_rate probability
+    if not training:
+      dropout_rate = 0.0
 
   #
   # (deep breath) calculate attention and out projection
   #
-  attn_output, attn_output_weights = _scaled_dot_product_attention(
-      q, k, v, attn_mask, dropout_rate)
-  attn_output = attn_output.transpose(0, 1).contiguous().view(
-      tgt_len * bsz, embed_dim)
-  attn_output = F.linear(attn_output, out_proj_weight, out_proj_bias)
-  attn_output = attn_output.view(tgt_len, bsz, attn_output.size(1))
+  with hotline.annotate('deep breath'):
+    with hotline.annotate('scaled_dot_product_attention'):
+      attn_output, attn_output_weights = _scaled_dot_product_attention(
+          q, k, v, attn_mask, dropout_rate)
+    with hotline.annotate('Linear'):
+      attn_output = attn_output.transpose(0, 1).contiguous().view(
+          tgt_len * bsz, embed_dim)
+    with hotline.annotate('Linear'):
+      attn_output = F.linear(attn_output, out_proj_weight, out_proj_bias)
+    with hotline.annotate('View'):
+      attn_output = attn_output.view(tgt_len, bsz, attn_output.size(1))
 
-  if need_weights:
-    # optionally average attention weights over heads
-    attn_output_weights = attn_output_weights.view(bsz,
-                                                   num_heads,
-                                                   tgt_len,
-                                                   src_len)
-    if average_attn_weights:
-      attn_output_weights = attn_output_weights.sum(dim=1) / num_heads
-    return attn_output, attn_output_weights, cache
-  else:
-    return attn_output, None, cache
+  with hotline.annotate('after'):
+    if need_weights:
+      # optionally average attention weights over heads
+      attn_output_weights = attn_output_weights.view(bsz,
+                                                    num_heads,
+                                                    tgt_len,
+                                                    src_len)
+      if average_attn_weights:
+        attn_output_weights = attn_output_weights.sum(dim=1) / num_heads
+      return attn_output, attn_output_weights, cache
+    else:
+      return attn_output, None, cache
