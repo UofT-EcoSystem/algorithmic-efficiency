@@ -7,10 +7,11 @@ from algorithmic_efficiency import spec
 
 def get_batch_size(workload_name):
   # Return the global batch size.
-  batch_sizes = {'ogbg': 32768/16}  # 2048
+  batch_sizes = {'ogbg': 2048}  # largest possible on 2080
+  batch_sizes = {'ogbg': 64}  # smallest possible quick test
   # batch_sizes = {'ogbg': 32768/8}  # OOM
   # batch_sizes = {'ogbg': 32768/4}  # OOM
-  # batch_sizes = {'ogbg': 32768}
+  # batch_sizes = {'ogbg': 32768}  # default
   return batch_sizes[workload_name]
 
 
@@ -50,7 +51,6 @@ def update_params(workload: spec.Workload,
 
   current_model = current_param_container
   current_model.train()
-  optimizer_state['optimizer'].zero_grad()
 
   logits, new_model_state = workload.model_fn(
       params=current_model,
@@ -62,6 +62,7 @@ def update_params(workload: spec.Workload,
 
   mask = batch['weights']
   loss, _ = workload.loss_fn(batch['targets'], logits, mask)
+  optimizer_state['optimizer'].zero_grad()
 
   loss.backward()
   optimizer_state['optimizer'].step()

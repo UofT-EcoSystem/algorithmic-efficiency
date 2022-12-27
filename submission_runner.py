@@ -289,6 +289,66 @@ def train_once(workload: spec.Workload,
     # Make sure all processes start training at the same time.
     global_start_time = sync_ddp_time(global_start_time, DEVICE)
 
+# Hotline profiling
+  import hotline
+  from IPython import embed
+  import datetime
+  """ Usage:
+sudo apt-get install python3-venv
+python3 -m venv env
+source env/bin/activate
+
+pip3 install -e '.[jax_cpu]'
+pip3 install -e '.[pytorch_gpu]' -f 'https://download.pytorch.org/whl/torch_stable.html'
+pip3 install -e '.[full]'
+
+pip install -e /home/dans/cpath
+
+export CUDA_VISIBLE_DEVICES=0
+
+source env/bin/activate
+kill %; rm -rf /home/dans/algorithmic-efficiency/experiment_dir/baseline/ogbg_pytorch; python3 submission_runner.py \
+    --framework=pytorch \
+    --workload=ogbg \
+    --experiment_dir=/home/dans/algorithmic-efficiency/experiment_dir \
+    --experiment_name=baseline \
+    --submission_path=reference_algorithms/development_algorithms/ogbg/ogbg_pytorch/submission.py \
+    --tuning_search_space=reference_algorithms/development_algorithms/ogbg/tuning_search_space.json \
+    --data_dir=/FS1/dataset/ogbg_molpcba
+  """
+
+  last_time = datetime.datetime.now()
+  print(last_time)
+  model_params = torch.nn.DataParallel(model_params)
+
+  # wait = 3
+  # warmup = 3
+  # active = 1
+  wait = 1
+  warmup = 0
+  active = 1
+
+  torch_profiler = torch.profiler.profile(
+    activities=[
+        torch.profiler.ProfilerActivity.CPU,
+        torch.profiler.ProfilerActivity.CUDA],
+    schedule=torch.profiler.schedule(
+        wait=wait,
+        warmup=warmup,
+        active=active),
+    on_trace_ready=hotline.analyze(
+        model_params,
+        input_queue,
+        run_name='current',
+        test_accuracy=True,
+        output_dir='/home/dans/cpath',
+    ),
+    record_shapes=False,
+    profile_memory=False,
+    with_stack=False
+  )
+
+
   logging.info('Starting training loop.')
   while train_state['is_time_remaining'] and \
       not train_state['goal_reached'] and \
@@ -322,6 +382,24 @@ def train_once(workload: spec.Workload,
             eval_results=eval_results,
             global_step=global_step,
             rng=update_rng)
+
+
+
+      this_time = datetime.datetime.now()
+      tdelta = this_time - last_time
+      logging.info(f'tdelta: {tdelta}')
+      last_time = this_time
+      logging.info(f'global_step: {global_step}\n')
+      torch_profiler.step()
+      hotline.annotate.step()
+      if global_step == wait + warmup:
+        import sys
+        sys.exit(0)
+      global_step += 1
+      continue
+
+
+
     except spec.TrainingCompleteError:
       train_state['training_complete'] = True
     global_step += 1
