@@ -10,6 +10,10 @@ from torch import nn
 from algorithmic_efficiency import init_utils
 
 
+import hotline
+from IPython import embed
+
+
 def _make_mlp(in_dim, hidden_dims, dropout_rate):
   """Creates a MLP with specified dimensions."""
   layers = []
@@ -71,16 +75,30 @@ class GNN(nn.Module):
         init_utils.pytorch_default_init(m)
 
   def forward(self, graph: GraphsTuple) -> torch.Tensor:
-    graph = graph._replace(
-        globals=torch.zeros([graph.n_node.shape[0], self.num_outputs],
-                            device=graph.n_node.device))
-    graph = graph._replace(nodes=self.node_embedder(graph.nodes))
-    graph = graph._replace(edges=self.edge_embedder(graph.edges))
+    with hotline.annotate("Forward"):
+      graph = graph._replace(
+          globals=torch.zeros([graph.n_node.shape[0], self.num_outputs],
+                              device=graph.n_node.device))
+      # graph = graph._replace(nodes=self.node_embedder(graph.nodes))
+      with hotline.annotate('node_embedder'):
+        with hotline.annotate('Linear'):
+          nodes = self.node_embedder(graph.nodes)
+          graph = graph._replace(nodes=nodes)
+      # graph = graph._replace(edges=self.edge_embedder(graph.edges))
+      with hotline.annotate('edge_embedder'):
+        with hotline.annotate('Linear'):
+          edges = self.edge_embedder(graph.edges)
+          graph = graph._replace(edges=edges)
 
-    graph = self.graph_network(graph)
+      with hotline.annotate('graph_network'):
+        # graph = self.graph_network(graph)
+        for layer in self.graph_network:
+          graph = layer(graph)
 
-    # Map globals to represent the final result
-    graph = graph._replace(globals=self.decoder(graph.globals))
+      with hotline.annotate('decoder'):
+        with hotline.annotate('Linear'):
+          # Map globals to represent the final result
+          graph = graph._replace(globals=self.decoder(graph.globals))
 
     return graph.globals
 
@@ -136,59 +154,69 @@ class GraphNetwork(nn.Module):
     Returns:
       Updated `GraphsTuple`.
     """
-    nodes, edges, receivers, senders, globals_, n_node, n_edge = graph
-    sum_n_node = tree.tree_leaves(nodes)[0].shape[0]
-    if not tree.tree_all(
-        tree.tree_map(lambda n: n.shape[0] == sum_n_node, nodes)):
-      raise ValueError(
-          'All node arrays in nest must contain the same number of nodes.')
+    with hotline.annotate("repeat_interleave"):
+      nodes, edges, receivers, senders, globals_, n_node, n_edge = graph
+      sum_n_node = tree.tree_leaves(nodes)[0].shape[0]
+      if not tree.tree_all(
+          tree.tree_map(lambda n: n.shape[0] == sum_n_node, nodes)):
+        raise ValueError(
+            'All node arrays in nest must contain the same number of nodes.')
 
-    sent_attributes = tree.tree_map(lambda n: n[senders], nodes)
-    received_attributes = tree.tree_map(lambda n: n[receivers], nodes)
-    # Here we scatter the global features to the corresponding edges,
-    # giving us tensors of shape [num_edges, global_feat].
-    global_edge_attributes = tree.tree_map(
-        lambda g: torch.repeat_interleave(g, n_edge, dim=0), globals_)
+      sent_attributes = tree.tree_map(lambda n: n[senders], nodes)
+      received_attributes = tree.tree_map(lambda n: n[receivers], nodes)
+      # Here we scatter the global features to the corresponding edges,
+      # giving us tensors of shape [num_edges, global_feat].
+      global_edge_attributes = tree.tree_map(
+          lambda g: torch.repeat_interleave(g, n_edge, dim=0), globals_)
 
     if self.update_edge_fn:
-      edge_fn_inputs = torch.cat(
-          [edges, sent_attributes, received_attributes, global_edge_attributes],
-          dim=-1)
-      edges = self.update_edge_fn(edge_fn_inputs)
+      with hotline.annotate('aten::cat'):
+        edge_fn_inputs = torch.cat(
+            [edges, sent_attributes, received_attributes, global_edge_attributes],
+            dim=-1)
+      with hotline.annotate('Edge'):
+        # edges = self.update_edge_fn(edge_fn_inputs)
+        edges = hotline.annotate_module_list(self.update_edge_fn, edge_fn_inputs)
 
     if self.update_node_fn:
-      sent_attributes = tree.tree_map(
-          lambda e: scatter_sum(e, senders, dim=0, dim_size=sum_n_node), edges)
-      received_attributes = tree.tree_map(
-          lambda e: scatter_sum(e, receivers, dim=0, dim_size=sum_n_node),
-          edges)
-      # Here we scatter the global features to the corresponding nodes,
-      # giving us tensors of shape [num_nodes, global_feat].
-      global_attributes = tree.tree_map(
-          lambda g: torch.repeat_interleave(g, n_node, dim=0), globals_)
-      node_fn_inputs = torch.cat(
-          [nodes, sent_attributes, received_attributes, global_attributes],
-          dim=-1)
-      nodes = self.update_node_fn(node_fn_inputs)
+      with hotline.annotate('aten::cat'):
+        sent_attributes = tree.tree_map(
+            lambda e: scatter_sum(e, senders, dim=0, dim_size=sum_n_node), edges)
+        received_attributes = tree.tree_map(
+            lambda e: scatter_sum(e, receivers, dim=0, dim_size=sum_n_node),
+            edges)
+        # Here we scatter the global features to the corresponding nodes,
+        # giving us tensors of shape [num_nodes, global_feat].
+        global_attributes = tree.tree_map(
+            lambda g: torch.repeat_interleave(g, n_node, dim=0), globals_)
+        node_fn_inputs = torch.cat(
+            [nodes, sent_attributes, received_attributes, global_attributes],
+            dim=-1)
+      with hotline.annotate('Node'):
+        # nodes = self.update_node_fn(node_fn_inputs)
+        nodes = hotline.annotate_module_list(self.update_node_fn, node_fn_inputs)
 
     if self.update_global_fn:
-      n_graph = n_node.shape[0]
-      graph_idx = torch.arange(n_graph, device=graph.n_node.device)
-      # To aggregate nodes and edges from each graph to global features,
-      # we first construct tensors that map the node to the corresponding graph.
-      # For example, if you have `n_node=[1,2]`, we construct the tensor
-      # [0, 1, 1]. We then do the same for edges.
-      node_gr_idx = torch.repeat_interleave(graph_idx, n_node, dim=0)
-      edge_gr_idx = torch.repeat_interleave(graph_idx, n_edge, dim=0)
-      # We use the aggregation function to pool the nodes/edges per graph.
-      node_attributes = tree.tree_map(
-          lambda n: scatter_sum(n, node_gr_idx, dim=0, dim_size=n_graph), nodes)
-      edge_attributes = tree.tree_map(
-          lambda e: scatter_sum(e, edge_gr_idx, dim=0, dim_size=n_graph), edges)
-      # These pooled nodes are the inputs to the global update fn.
-      global_fn_inputs = torch.cat([node_attributes, edge_attributes, globals_],
-                                   dim=-1)
-      globals_ = self.update_global_fn(global_fn_inputs)
+      with hotline.annotate('aten::cat'):
+        n_graph = n_node.shape[0]
+        graph_idx = torch.arange(n_graph, device=graph.n_node.device)
+        # To aggregate nodes and edges from each graph to global features,
+        # we first construct tensors that map the node to the corresponding graph.
+        # For example, if you have `n_node=[1,2]`, we construct the tensor
+        # [0, 1, 1]. We then do the same for edges.
+        node_gr_idx = torch.repeat_interleave(graph_idx, n_node, dim=0)
+        edge_gr_idx = torch.repeat_interleave(graph_idx, n_edge, dim=0)
+        # We use the aggregation function to pool the nodes/edges per graph.
+        node_attributes = tree.tree_map(
+            lambda n: scatter_sum(n, node_gr_idx, dim=0, dim_size=n_graph), nodes)
+        edge_attributes = tree.tree_map(
+            lambda e: scatter_sum(e, edge_gr_idx, dim=0, dim_size=n_graph), edges)
+        # These pooled nodes are the inputs to the global update fn.
+        global_fn_inputs = torch.cat([node_attributes, edge_attributes, globals_],
+                                    dim=-1)
+      with hotline.annotate('Global'):
+        # globals_ = self.update_global_fn(global_fn_inputs)
+        globals_ = hotline.annotate_module_list(self.update_global_fn, global_fn_inputs)
 
     return GraphsTuple(
         nodes=nodes,
