@@ -8,6 +8,8 @@ from torch.optim.lr_scheduler import SequentialLR
 from algorithmic_efficiency import spec
 
 
+import hotline
+
 def get_batch_size(workload_name):
   batch_sizes = {'criteo1tb': 524_288}  # default
   batch_sizes = {'criteo1tb': 131_072}  # most on 1x RTX 2080Ti
@@ -70,21 +72,28 @@ def update_params(workload: spec.Workload,
   current_model = current_param_container
   current_param_container.train()
 
-  logits_batch, new_model_state = workload.model_fn(
-      params=current_model,
-      augmented_and_preprocessed_input_batch=batch,
-      model_state=model_state,
-      mode=spec.ForwardPassMode.TRAIN,
-      rng=rng,
-      update_batch_norm=False)
+  with hotline.annotate('Forward'):
+    logits_batch, new_model_state = workload.model_fn(
+        params=current_model,
+        augmented_and_preprocessed_input_batch=batch,
+        model_state=model_state,
+        mode=spec.ForwardPassMode.TRAIN,
+        rng=rng,
+        update_batch_norm=False)
 
-  loss, _ = workload.loss_fn(
-      label_batch=batch['targets'], logits_batch=logits_batch)
-  optimizer_state['optimizer'].zero_grad()
+  with hotline.annotate('Calc Loss'):
+    loss, _ = workload.loss_fn(
+        label_batch=batch['targets'], logits_batch=logits_batch)
 
-  loss.backward()
-  optimizer_state['optimizer'].step()
-  optimizer_state['scheduler'].step()
+  with hotline.annotate('Zero Grad'):
+    optimizer_state['optimizer'].zero_grad()
+
+  with hotline.annotate('Backward'):
+    loss.backward()
+
+  with hotline.annotate('Optimizer'):
+    optimizer_state['optimizer'].step()
+    optimizer_state['scheduler'].step()
 
   return (optimizer_state, current_param_container, new_model_state)
 

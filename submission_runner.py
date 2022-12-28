@@ -342,14 +342,15 @@ def train_once(workload: spec.Workload,
       start_time = sync_ddp_time(start_time, DEVICE)
 
     with profiler.profile('Data selection'):
-      batch = data_selection(workload,
-                             input_queue,
-                             optimizer_state,
-                             model_params,
-                             model_state,
-                             hyperparameters,
-                             global_step,
-                             data_select_rng)
+      with hotline.annotate('Load Data'):
+        batch = data_selection(workload,
+                              input_queue,
+                              optimizer_state,
+                              model_params,
+                              model_state,
+                              hyperparameters,
+                              global_step,
+                              data_select_rng)
     try:
       with profiler.profile('Update parameters'):
         optimizer_state, model_params, model_state = update_params(

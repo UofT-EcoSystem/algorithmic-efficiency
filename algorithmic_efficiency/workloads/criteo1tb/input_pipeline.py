@@ -113,12 +113,12 @@ def get_criteo1tb_dataset(split: str,
 
   ds = ds.interleave(
       tf.data.TextLineDataset,
-      cycle_length=64,
-      block_length=global_batch_size // 1,
-      num_parallel_calls=64,
+      cycle_length=128,
+      block_length=global_batch_size // 8,
+      num_parallel_calls=128,
       deterministic=False)
-  # if is_training:
-  #   ds = ds.shuffle(buffer_size=524_288 * 100, seed=shuffle_rng[1])
+  # if is_training:   # speed-up for testing hotline
+  #   ds = ds.shuffle(buffer_size=524_288 * 100, seed=shuffle_rng[1])  # speed-up for testing hotline
   ds = ds.batch(global_batch_size, drop_remainder=is_training)
   parse_fn = functools.partial(_parse_example_fn, num_dense_features)
   ds = ds.map(parse_fn, num_parallel_calls=16)
