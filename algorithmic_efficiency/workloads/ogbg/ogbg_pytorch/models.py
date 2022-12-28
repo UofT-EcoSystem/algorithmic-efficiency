@@ -92,8 +92,9 @@ class GNN(nn.Module):
 
       with hotline.annotate('graph_network'):
         # graph = self.graph_network(graph)
-        for layer in self.graph_network:
-          graph = layer(graph)
+        for idx, layer in enumerate(self.graph_network):
+          with hotline.annotate(f'Layer{idx+1}'):
+            graph = layer(graph)
 
       with hotline.annotate('decoder'):
         with hotline.annotate('Linear'):
