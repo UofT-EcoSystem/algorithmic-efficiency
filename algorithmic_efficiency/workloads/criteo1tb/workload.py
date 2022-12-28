@@ -14,7 +14,8 @@ USE_PYTORCH_DDP = 'LOCAL_RANK' in os.environ
 class BaseCriteo1TbDlrmSmallWorkload(spec.Workload):
   """Criteo1tb workload."""
 
-  vocab_size: int = 32 * 128 * 1024  # 4_194_304
+  # vocab_size: int = 32 * 128 * 1024  # 4_194_304
+  vocab_size: int = 128 * 1024  # fits on 2080 1x GPU
   num_dense_features: int = 13
   mlp_bottom_dims: Tuple[int, int] = (512, 256, 128)
   mlp_top_dims: Tuple[int, int, int] = (1024, 1024, 512, 256, 1)

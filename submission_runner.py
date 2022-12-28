@@ -289,6 +289,48 @@ def train_once(workload: spec.Workload,
     # Make sure all processes start training at the same time.
     global_start_time = sync_ddp_time(global_start_time, DEVICE)
 
+
+
+
+# Hotline profiling
+  import hotline
+  from IPython import embed
+  import datetime
+
+  last_time = datetime.datetime.now()
+  print(last_time)
+  model_params = torch.nn.DataParallel(model_params)
+
+  # wait = 3
+  # warmup = 3
+  # active = 1
+  wait = 1
+  warmup = 0
+  active = 1
+
+  torch_profiler = torch.profiler.profile(
+    activities=[
+        torch.profiler.ProfilerActivity.CPU,
+        torch.profiler.ProfilerActivity.CUDA],
+    schedule=torch.profiler.schedule(
+        wait=wait,
+        warmup=warmup,
+        active=active),
+    on_trace_ready=hotline.analyze(
+        model_params,
+        input_queue,
+        run_name='current',
+        test_accuracy=True,
+        output_dir='/home/dans/cpath',
+    ),
+    record_shapes=False,
+    profile_memory=False,
+    with_stack=False
+  )
+
+
+
+
   logging.info('Starting training loop.')
   while train_state['is_time_remaining'] and \
       not train_state['goal_reached'] and \
@@ -322,6 +364,27 @@ def train_once(workload: spec.Workload,
             eval_results=eval_results,
             global_step=global_step,
             rng=update_rng)
+
+
+
+
+      # Hotline profiling
+      this_time = datetime.datetime.now()
+      tdelta = this_time - last_time
+      logging.info(f'tdelta: {tdelta}')
+      last_time = this_time
+      logging.info(f'global_step: {global_step}\n')
+      torch_profiler.step()
+      hotline.annotate.step()
+      if global_step == wait + warmup:
+        import sys
+        sys.exit(0)
+      global_step += 1
+      continue
+
+
+
+
     except spec.TrainingCompleteError:
       train_state['training_complete'] = True
     global_step += 1

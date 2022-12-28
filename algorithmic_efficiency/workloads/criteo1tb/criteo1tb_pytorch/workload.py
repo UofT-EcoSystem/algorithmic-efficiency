@@ -189,6 +189,11 @@ class Criteo1TbDlrmSmallWorkload(BaseCriteo1TbDlrmSmallWorkload):
         dist.broadcast(targets, src=0)
         targets = targets[RANK]
 
+      if 'weights' not in locals() and N_GPUS == 1:
+          weights = torch.empty((N_GPUS, per_device_batch_size, 1),
+                                dtype=torch.float32,
+                                device=DEVICE)
+          weights = weights[RANK]
       batch = {
           'inputs': inputs,
           'targets': targets,

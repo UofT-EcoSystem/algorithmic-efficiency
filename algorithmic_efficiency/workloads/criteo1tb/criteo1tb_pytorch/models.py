@@ -6,6 +6,9 @@ import torch
 from torch import nn
 
 
+import hotline
+
+
 def dot_interact(concat_features):
   """Performs feature interaction operation between dense or sparse features.
   Input tensors represent dense or sparse features.
@@ -106,19 +109,37 @@ class DlrmSmall(nn.Module):
                         math.sqrt(1. / module.out_features))
 
   def forward(self, x):
-    bot_mlp_input, cat_features = torch.split(
-      x, [self.num_dense_features, self.num_sparse_features], 1)
-    cat_features = cat_features.to(dtype=torch.int32)
-    bot_mlp_output = self.bot_mlp(bot_mlp_input)
-    batch_size = bot_mlp_output.shape[0]
-    feature_stack = torch.reshape(bot_mlp_output,
-                                  [batch_size, -1, self.embed_dim])
-    idx_lookup = torch.reshape(cat_features, [-1]) % self.vocab_size
-    embed_features = self.embedding_table(idx_lookup)
-    embed_features = torch.reshape(embed_features,
-                                   [batch_size, -1, self.embed_dim])
-    feature_stack = torch.cat([feature_stack, embed_features], axis=1)
-    dot_interact_output = dot_interact(concat_features=feature_stack)
-    top_mlp_input = torch.cat([bot_mlp_output, dot_interact_output], axis=-1)
-    logits = self.top_mlp(top_mlp_input)
-    return logits
+    with hotline.annotate('Forward'):
+      with hotline.annotate('aten::to'):
+        bot_mlp_input, cat_features = torch.split(
+          x, [self.num_dense_features, self.num_sparse_features], 1)
+        cat_features = cat_features.to(dtype=torch.int32)
+
+      with hotline.annotate('Bottom MLP'):
+        bot_mlp_output = self.bot_mlp(bot_mlp_input)
+
+      with hotline.annotate('ID Lookup'):
+        batch_size = bot_mlp_output.shape[0]
+        feature_stack = torch.reshape(bot_mlp_output,
+                                      [batch_size, -1, self.embed_dim])
+        with hotline.annotate('aten::remainder'):
+          idx_lookup = torch.reshape(cat_features, [-1]) % self.vocab_size
+
+      with hotline.annotate('Embedding Table'):
+        embed_features = self.embedding_table(idx_lookup)
+
+      with hotline.annotate('Shape Input'):
+        with hotline.annotate('aten::reshape'):
+          embed_features = torch.reshape(embed_features,
+                                        [batch_size, -1, self.embed_dim])
+        with hotline.annotate('aten::cat'):
+          feature_stack = torch.cat([feature_stack, embed_features], axis=1)
+        with hotline.annotate('Interaction'):
+          dot_interact_output = dot_interact(concat_features=feature_stack)
+        with hotline.annotate('aten::cat'):
+          top_mlp_input = torch.cat([bot_mlp_output, dot_interact_output], axis=-1)
+
+      with hotline.annotate('Top MLP'):
+        logits = self.top_mlp(top_mlp_input)
+
+      return logits
