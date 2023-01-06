@@ -301,12 +301,12 @@ def train_once(workload: spec.Workload,
   print(last_time)
   model_params = torch.nn.DataParallel(model_params)
 
-  # wait = 3
-  # warmup = 3
-  # active = 1
-  wait = 1
-  warmup = 0
+  wait = 3
+  warmup = 3
   active = 1
+  # wait = 1
+  # warmup = 0
+  # active = 1
 
   torch_profiler = torch.profiler.profile(
     activities=[
