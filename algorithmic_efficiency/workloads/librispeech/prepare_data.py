@@ -26,8 +26,8 @@ def check_characters(string, labels):
 def analyze_transcripts(train_data_dir, ignore_space=False):
   char_labels = set()
   for j, speaker_folder in enumerate(os.listdir(train_data_dir)):
-    if j % 10 == 0:
-      print(j)
+    # if j % 10 == 0:
+      # print(j)
     for chapter_folder in os.listdir(f'{train_data_dir}/{speaker_folder}'):
       trans_file = (f'{train_data_dir}/{speaker_folder}/{chapter_folder}/'
                     f'{speaker_folder}-{chapter_folder}.trans.txt')
@@ -51,8 +51,8 @@ def analyze_transcripts(train_data_dir, ignore_space=False):
 def get_txt(data_folder, labels_dict, ignore_space=False):
   file_trans = []
   for j, speaker_folder in enumerate(os.listdir(data_folder)):
-    if j % 20 == 0:
-      print(f'{j}th speaker')
+    # if j % 20 == 0:
+      # print(f'{j}th speaker')
     if not speaker_folder.isdigit():
       continue
     for chapter_folder in os.listdir(f'{data_folder}/{speaker_folder}'):
@@ -105,7 +105,7 @@ def extract_spect_mvn(audio_path):
   spect = np.log1p(spect)
   # spect = torch.FloatTensor(spect)
   # if self.normalize:
-  print(spect.shape)
+  # print(spect.shape)
   mean = np.mean(spect)
   std = np.std(spect)
   spect -= mean
