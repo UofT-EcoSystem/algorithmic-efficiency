@@ -342,6 +342,10 @@ kill %; rm -rf /home/dans/algorithmic-efficiency/experiment_dir/baseline/ogbg_py
         run_name='current',
         test_accuracy=True,
         output_dir='/home/dans/cpath',
+        metadata={
+            'model': 'GNN',
+            'dataset': 'OGBG MOLPCBA',
+        },
     ),
     record_shapes=False,
     profile_memory=False,
