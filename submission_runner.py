@@ -305,7 +305,7 @@ kill %; python3 submission_runner.py \
     on_trace_ready=hotline.analyze(
         model_params,
         input_queue,
-        run_name='current',
+        run_name='Transformer',
         test_accuracy=True,
         output_dir='/home/dans/cpath',
         metadata={
