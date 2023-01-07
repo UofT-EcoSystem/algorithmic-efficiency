@@ -339,7 +339,7 @@ kill %; rm -rf /home/dans/algorithmic-efficiency/experiment_dir/baseline/ogbg_py
     on_trace_ready=hotline.analyze(
         model_params,
         input_queue,
-        run_name='current',
+        run_name='GNN',
         test_accuracy=True,
         output_dir='/home/dans/cpath',
         metadata={
