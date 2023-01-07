@@ -319,7 +319,7 @@ def train_once(workload: spec.Workload,
     on_trace_ready=hotline.analyze(
         model_params,
         input_queue,
-        run_name='current',
+        run_name='DLRM',
         test_accuracy=True,
         output_dir='/home/dans/cpath',
         metadata={
