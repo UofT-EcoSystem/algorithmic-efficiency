@@ -308,6 +308,10 @@ kill %; python3 submission_runner.py \
         run_name='current',
         test_accuracy=True,
         output_dir='/home/dans/cpath',
+        metadata={
+            'model': 'Transformer',
+            'dataset': 'WMT17',
+        },
     ),
     record_shapes=False,
     profile_memory=False,
