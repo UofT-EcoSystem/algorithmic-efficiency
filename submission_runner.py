@@ -404,7 +404,7 @@ kill %; rm -rf /home/dans/algorithmic-efficiency/experiment_dir/baseline/ogbg_py
       logging.info(f'global_step: {global_step}\n')
       torch_profiler.step()
       hotline.annotate.step()
-      if global_step == wait + warmup:
+      if global_step >= max_steps:
         import sys
         sys.exit(0)
       global_step += 1
