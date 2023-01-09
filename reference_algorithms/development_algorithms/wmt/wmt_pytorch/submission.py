@@ -5,14 +5,16 @@ import torch
 
 from algorithmic_efficiency import spec
 
-
+import os
 import hotline
 
 
 def get_batch_size(workload_name):
-  # batch_sizes = {'wmt': 2}
-  batch_sizes = {'wmt': 32 }
-  # batch_sizes = {'wmt': 128 }
+  quick_run = os.environ.get('HOTLINE_QUICK_RUN')
+  if quick_run:
+    batch_sizes = {'wmt': 32 }
+  else:
+    batch_sizes = {'wmt': 128 }
   print(batch_sizes)
   return batch_sizes[workload_name]
 

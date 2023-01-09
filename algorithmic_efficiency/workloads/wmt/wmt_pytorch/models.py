@@ -13,14 +13,9 @@ from torch.nn.init import xavier_uniform_
 
 
 import hotline
-
 from IPython import embed
+import os
 
-# nn.Dropout = nn.Identity
-# nn.LayerNorm = nn.Identity
-# nn.MultiheadAttention = nn.Identity
-# nn.TransformerEncoderLayer = nn.Identity
-# nn.MultiheadAttention = nn.Identity
 
 # Mask making utilities ported to PyTorch from
 # https://github.com/google/flax/blob/main/flax/linen/attention.py
@@ -138,17 +133,21 @@ class Transformer(nn.Module):
   def __init__(self,
                ntoken: int = 32000,
                d_model: int = 1024,
-              #  nhead: int = 16,
-              #  d_hid: int = 4096,
-              #  nlayers: int = 6,
-               nhead: int = 2,
-               d_hid: int = 64,
-               nlayers: int = 2,
+               nhead: int = 16,
+               d_hid: int = 4096,
+               nlayers: int = 6,
                dropout_rate: float = 0.1,
                attention_dropout_rate: float = 0.1,
                layer_norm_eps: float = 1e-6):
+    quick_run = os.environ.get('HOTLINE_QUICK_RUN')
+    if quick_run:
+      print('less model params')
+      nhead = 2
+      d_hid = 64
+      nlayers = 2
+
     super().__init__()
-    print('less params')
+
     self.pos_encoder = PositionalEncoding(d_model, dropout_rate)
     self.shared_embedding = nn.Embedding(ntoken, d_model)
     self.encoder = Encoder(d_model,
