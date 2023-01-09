@@ -321,12 +321,22 @@ kill %; rm -rf /home/dans/algorithmic-efficiency/experiment_dir/baseline/ogbg_py
   print(last_time)
   model_params = torch.nn.DataParallel(model_params)
 
-  # wait = 3
-  # warmup = 3
-  # active = 1
-  wait = 1
-  warmup = 0
-  active = 1
+  quick_run = os.environ.get('HOTLINE_QUICK_RUN')
+  if quick_run:
+      wait = 1
+      warmup = 0
+      active = 1
+  else:
+      wait = 3
+      warmup = 3
+      active = 1
+  max_steps = wait + warmup + active
+
+  metadata = {
+    'model': 'GNN',
+    'dataset': 'OGBG MOLPCBA',
+    'runtime': [],
+  }
 
   torch_profiler = torch.profiler.profile(
     activities=[
@@ -342,10 +352,7 @@ kill %; rm -rf /home/dans/algorithmic-efficiency/experiment_dir/baseline/ogbg_py
         run_name='GNN',
         test_accuracy=True,
         output_dir='/home/dans/cpath',
-        metadata={
-            'model': 'GNN',
-            'dataset': 'OGBG MOLPCBA',
-        },
+        metadata=metadata
     ),
     record_shapes=False,
     profile_memory=False,
@@ -392,6 +399,7 @@ kill %; rm -rf /home/dans/algorithmic-efficiency/experiment_dir/baseline/ogbg_py
       this_time = datetime.datetime.now()
       tdelta = this_time - last_time
       logging.info(f'tdelta: {tdelta}')
+      metadata['runtime'].append(tdelta)
       last_time = this_time
       logging.info(f'global_step: {global_step}\n')
       torch_profiler.step()
