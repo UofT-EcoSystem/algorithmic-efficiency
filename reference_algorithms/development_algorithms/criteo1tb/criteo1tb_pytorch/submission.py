@@ -9,11 +9,17 @@ from algorithmic_efficiency import spec
 
 
 import hotline
+import os
+
+
 
 def get_batch_size(workload_name):
-  batch_sizes = {'criteo1tb': 524_288}  # default
-  batch_sizes = {'criteo1tb': 131_072}  # most on 1x RTX 2080Ti
-  batch_sizes = {'criteo1tb': 2048}     # smallest
+  quick_run = os.environ.get('HOTLINE_QUICK_RUN')
+  if quick_run:
+    batch_sizes = {'criteo1tb': 131_072}  # most on 1x RTX 2080Ti
+    batch_sizes = {'criteo1tb': 2048}     # smallest
+  else:
+    batch_sizes = {'criteo1tb': 524_288}  # default
   print("batch_size: ", batch_sizes[workload_name])
   return batch_sizes[workload_name]
 
