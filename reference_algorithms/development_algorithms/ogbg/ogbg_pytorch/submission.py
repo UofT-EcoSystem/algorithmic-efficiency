@@ -1,17 +1,19 @@
 from typing import Dict, Iterator, List, Tuple
 
 import torch
+import os
 
 from algorithmic_efficiency import spec
 
 
 def get_batch_size(workload_name):
   # Return the global batch size.
-  batch_sizes = {'ogbg': 2048}  # largest possible on 2080
-  batch_sizes = {'ogbg': 64}  # smallest possible quick test
-  # batch_sizes = {'ogbg': 32768/8}  # OOM
-  # batch_sizes = {'ogbg': 32768/4}  # OOM
-  # batch_sizes = {'ogbg': 32768}  # default
+  quick_run = os.environ.get('HOTLINE_QUICK_RUN')
+  if quick_run:
+    batch_sizes = {'ogbg': 2048}  # largest possible on 2080
+    batch_sizes = {'ogbg': 64}  # smallest possible quick test
+  else:
+    batch_sizes = {'ogbg': 32768}  # default
   return batch_sizes[workload_name]
 
 
