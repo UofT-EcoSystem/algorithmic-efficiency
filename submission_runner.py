@@ -289,6 +289,24 @@ kill %; python3 submission_runner.py \
 
   last_time = datetime.datetime.now()
   print(last_time)
+  model_params = torch.nn.DataParallel(model_params)
+
+  quick_run = os.environ.get('HOTLINE_QUICK_RUN')
+  if quick_run:
+      wait = 1
+      warmup = 0
+      active = 1
+  else:
+      wait = 3
+      warmup = 3
+      active = 1
+  max_steps = wait + warmup + active
+
+  metadata = {
+    'model': 'Transformer',
+    'dataset': 'WMT17',
+    'runtime': [],
+  }
 
   model_params = torch.nn.DataParallel(model_params)
   torch_profiler = torch.profiler.profile(
@@ -296,22 +314,16 @@ kill %; python3 submission_runner.py \
         torch.profiler.ProfilerActivity.CPU,
         torch.profiler.ProfilerActivity.CUDA],
     schedule=torch.profiler.schedule(
-        # wait=0,
-        # warmup=0,
-        # active=1),
-        wait=3,
-        warmup=3,
-        active=1),
+        wait=wait,
+        warmup=warmup,
+        active=active),
     on_trace_ready=hotline.analyze(
         model_params,
         input_queue,
         run_name='Transformer',
         test_accuracy=True,
         output_dir='/home/dans/cpath',
-        metadata={
-            'model': 'Transformer',
-            'dataset': 'WMT17',
-        },
+        metadata=metadata,
     ),
     record_shapes=False,
     profile_memory=False,
@@ -352,11 +364,12 @@ kill %; python3 submission_runner.py \
       this_time = datetime.datetime.now()
       tdelta = this_time - last_time
       logging.info(f'tdelta: {tdelta}')
+      metadata['runtime'].append(tdelta)
       last_time = this_time
       logging.info(f'global_step: {global_step}\n')
       torch_profiler.step()
       hotline.annotate.step()
-      if global_step == 6:
+      if global_step >= max_steps:
         import sys
         sys.exit(0)
       global_step += 1
