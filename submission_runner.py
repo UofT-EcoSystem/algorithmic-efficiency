@@ -289,7 +289,6 @@ kill %; python3 submission_runner.py \
 
   last_time = datetime.datetime.now()
   print(last_time)
-  model_params = torch.nn.DataParallel(model_params)
 
   quick_run = os.environ.get('HOTLINE_QUICK_RUN')
   if quick_run:
