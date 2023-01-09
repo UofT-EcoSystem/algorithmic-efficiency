@@ -301,12 +301,22 @@ def train_once(workload: spec.Workload,
   print(last_time)
   model_params = torch.nn.DataParallel(model_params)
 
-  wait = 3
-  warmup = 3
-  active = 1
-  # wait = 1
-  # warmup = 0
-  # active = 1
+  quick_run = os.environ.get('HOTLINE_QUICK_RUN')
+  if quick_run:
+      wait = 1
+      warmup = 0
+      active = 1
+  else:
+      wait = 3
+      warmup = 3
+      active = 1
+  max_steps = wait + warmup + active
+
+  metadata = {
+    'model': 'DLRM',
+    'dataset': 'Criteo1TB',
+    'runtime': [],
+  }
 
   torch_profiler = torch.profiler.profile(
     activities=[
@@ -322,17 +332,12 @@ def train_once(workload: spec.Workload,
         run_name='DLRM',
         test_accuracy=True,
         output_dir='/home/dans/cpath',
-        metadata={
-            'model': 'DLRM',
-            'dataset': 'Criteo1TB',
-        },
+        metadata=metadata,
     ),
     record_shapes=False,
     profile_memory=False,
     with_stack=False
   )
-
-
 
 
   logging.info('Starting training loop.')
@@ -377,6 +382,7 @@ def train_once(workload: spec.Workload,
       this_time = datetime.datetime.now()
       tdelta = this_time - last_time
       logging.info(f'tdelta: {tdelta}')
+      metadata['runtime'].append(tdelta)
       last_time = this_time
       logging.info(f'global_step: {global_step}\n')
       torch_profiler.step()
