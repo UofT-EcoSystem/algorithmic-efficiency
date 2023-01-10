@@ -155,7 +155,7 @@ class GraphNetwork(nn.Module):
     Returns:
       Updated `GraphsTuple`.
     """
-    with hotline.annotate("repeat_interleave"):
+    with hotline.annotate("ignore repeat_interleave"):
       nodes, edges, receivers, senders, globals_, n_node, n_edge = graph
       sum_n_node = tree.tree_leaves(nodes)[0].shape[0]
       if not tree.tree_all(
@@ -171,7 +171,7 @@ class GraphNetwork(nn.Module):
           lambda g: torch.repeat_interleave(g, n_edge, dim=0), globals_)
 
     if self.update_edge_fn:
-      with hotline.annotate('aten::cat'):
+      with hotline.annotate('ignore aten::cat'):
         edge_fn_inputs = torch.cat(
             [edges, sent_attributes, received_attributes, global_edge_attributes],
             dim=-1)
@@ -180,7 +180,7 @@ class GraphNetwork(nn.Module):
         edges = hotline.annotate_module_list(self.update_edge_fn, edge_fn_inputs)
 
     if self.update_node_fn:
-      with hotline.annotate('aten::cat'):
+      with hotline.annotate('ignore aten::cat'):
         sent_attributes = tree.tree_map(
             lambda e: scatter_sum(e, senders, dim=0, dim_size=sum_n_node), edges)
         received_attributes = tree.tree_map(
@@ -198,7 +198,7 @@ class GraphNetwork(nn.Module):
         nodes = hotline.annotate_module_list(self.update_node_fn, node_fn_inputs)
 
     if self.update_global_fn:
-      with hotline.annotate('aten::cat'):
+      with hotline.annotate('ignore aten::cat'):
         n_graph = n_node.shape[0]
         graph_idx = torch.arange(n_graph, device=graph.n_node.device)
         # To aggregate nodes and edges from each graph to global features,
