@@ -141,7 +141,8 @@ class Transformer(nn.Module):
                layer_norm_eps: float = 1e-6):
     quick_run = os.environ.get('HOTLINE_QUICK_RUN')
     if quick_run:
-      print('less model params')
+      from absl import logging
+      logging.info(f'less model params')
       nhead = 2
       d_hid = 64
       nlayers = 2
@@ -963,7 +964,7 @@ class MultiheadAttention(nn.MultiheadAttention):
     name = f'decoder.layers.{index}.self_attn'
     loc_cache = cache[name] if decode and name in cache else None
 
-    with hotline.annotate('multi_head_attention_forward'):
+    with hotline.annotate('ignore multi_head_attention_forward'):
       attn_output, attn_output_weights, loc_cache = multi_head_attention_forward(
           query, key, value, self.embed_dim, self.num_heads,
           self.in_proj_bias, self.bias_k, self.bias_v,
@@ -1063,7 +1064,7 @@ def multi_head_attention_forward(
       per head of shape :math:`(num_heads, L, S)` when input is unbatched or
       :math:`(N, num_heads, L, S)`.
   """
-  with hotline.annotate("before"):
+  with hotline.annotate("ignore before"):
     # set up shape vars
     tgt_len, bsz, embed_dim = query.shape
     src_len, _, _ = key.shape
@@ -1201,8 +1202,8 @@ def multi_head_attention_forward(
   #
   # (deep breath) calculate attention and out projection
   #
-  with hotline.annotate('deep breath'):
-    with hotline.annotate('scaled_dot_product_attention'):
+  with hotline.annotate('ignore deep breath'):
+    with hotline.annotate('ignore scaled_dot_product_attention'):
       attn_output, attn_output_weights = _scaled_dot_product_attention(
           q, k, v, attn_mask, dropout_rate)
     # with hotline.annotate('Contiguous'):
