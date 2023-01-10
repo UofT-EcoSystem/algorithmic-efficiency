@@ -479,21 +479,22 @@ class TransformerEncoderLayer(nn.TransformerEncoderLayer):
 
       # see Fig. 1 of https://arxiv.org/pdf/2002.04745v1.pdf
 
-      x = src
-      if self.norm_first:
-          with hotline.annotate('LayerNorm'):
-            xx = self.norm1(x)
-          x = x + self._sa_block(xx, src_mask, src_key_padding_mask)
-          with hotline.annotate('LayerNorm'):
-            xx = self.norm2(x)
-          x = x + self._ff_block(xx)
-      else:
-          x = x + self._sa_block(x, src_mask, src_key_padding_mask)
-          with hotline.annotate('LayerNorm'):
-            x = self.norm1(x)
-          x = x + self._ff_block(x)
-          with hotline.annotate('LayerNorm'):
-            x = self.norm2(x)
+      with hotline.annotate('TransformerEncoderLayer'):
+        x = src
+        if self.norm_first:
+            with hotline.annotate('LayerNorm'):
+              xx = self.norm1(x)
+            x = x + self._sa_block(xx, src_mask, src_key_padding_mask)
+            with hotline.annotate('LayerNorm'):
+              xx = self.norm2(x)
+            x = x + self._ff_block(xx)
+        else:
+            x = x + self._sa_block(x, src_mask, src_key_padding_mask)
+            with hotline.annotate('LayerNorm'):
+              x = self.norm1(x)
+            x = x + self._ff_block(x)
+            with hotline.annotate('LayerNorm'):
+              x = self.norm2(x)
 
       return x
 
