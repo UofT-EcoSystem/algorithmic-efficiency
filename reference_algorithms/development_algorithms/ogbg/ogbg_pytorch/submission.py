@@ -5,6 +5,7 @@ import os
 
 from algorithmic_efficiency import spec
 
+import hotline
 
 def get_batch_size(workload_name):
   # Return the global batch size.
@@ -70,12 +71,18 @@ def update_params(workload: spec.Workload,
       rng=rng,
       update_batch_norm=True)
 
-  mask = batch['weights']
-  loss, _ = workload.loss_fn(batch['targets'], logits, mask)
-  optimizer_state['optimizer'].zero_grad()
+  with hotline.annotate('Calc Loss'):
+    mask = batch['weights']
+    loss, _ = workload.loss_fn(batch['targets'], logits, mask)
 
-  loss.backward()
-  optimizer_state['optimizer'].step()
+  with hotline.annotate('Zero Grad'):
+    optimizer_state['optimizer'].zero_grad()
+
+  with hotline.annotate('Backward'):
+    loss.backward()
+
+  with hotline.annotate('Optimizer'):
+    optimizer_state['optimizer'].step()
 
   return optimizer_state, current_param_container, new_model_state
 
