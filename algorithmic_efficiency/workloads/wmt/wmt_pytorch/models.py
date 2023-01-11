@@ -589,7 +589,7 @@ class TransformerDecoder(nn.Module):
     output = tgt
 
     for idx, mod in enumerate(self.layers):
-      with hotline.annotate('TransformerDecoderLayer'):
+      with hotline.annotate(f'Layer{idx+1}'):
         output, cache = mod(
             output,
             memory,

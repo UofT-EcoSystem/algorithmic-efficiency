@@ -296,9 +296,12 @@ kill %; python3 submission_runner.py \
       warmup = 0
       active = 1
   else:
-      wait = 3
-      warmup = 3
+      wait = 20
+      warmup = 19
       active = 1
+      # wait = 3
+      # warmup = 3
+      # active = 1
   max_steps = wait + warmup + active
 
   metadata = {
