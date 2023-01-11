@@ -80,23 +80,23 @@ class GNN(nn.Module):
           globals=torch.zeros([graph.n_node.shape[0], self.num_outputs],
                               device=graph.n_node.device))
       # graph = graph._replace(nodes=self.node_embedder(graph.nodes))
-      with hotline.annotate('node_embedder'):
+      with hotline.annotate('Node Embedder'):
         with hotline.annotate('Linear'):
           nodes = self.node_embedder(graph.nodes)
           graph = graph._replace(nodes=nodes)
       # graph = graph._replace(edges=self.edge_embedder(graph.edges))
-      with hotline.annotate('edge_embedder'):
+      with hotline.annotate('Edge Embedder'):
         with hotline.annotate('Linear'):
           edges = self.edge_embedder(graph.edges)
           graph = graph._replace(edges=edges)
 
-      with hotline.annotate('graph_network'):
+      with hotline.annotate('Graph Network'):
         # graph = self.graph_network(graph)
         for idx, layer in enumerate(self.graph_network):
           with hotline.annotate(f'Layer{idx+1}'):
             graph = layer(graph)
 
-      with hotline.annotate('decoder'):
+      with hotline.annotate('Decoder'):
         with hotline.annotate('Linear'):
           # Map globals to represent the final result
           graph = graph._replace(globals=self.decoder(graph.globals))
