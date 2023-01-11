@@ -310,8 +310,8 @@ def train_once(workload: spec.Workload,
       wait = 20
       warmup = 19
       active = 1
-      # wait = 3
-      # warmup = 3
+      # wait = 1
+      # warmup = 0
       # active = 1
   max_steps = wait + warmup + active
 
