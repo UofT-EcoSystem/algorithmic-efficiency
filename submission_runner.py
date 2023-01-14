@@ -31,8 +31,6 @@ from algorithmic_efficiency import halton
 from algorithmic_efficiency import random_utils as prng
 from algorithmic_efficiency import spec
 
-import hotline
-from IPython import embed
 
 # Hide any GPUs form TensorFlow. Otherwise TF might reserve memory and make
 # it unavailable to JAX.
@@ -193,21 +191,54 @@ def train_once(workload: spec.Workload,
   training_complete = False
   global_start_time = time.time()
 
+
+# Hotline profiling
+  import hotline
+  from IPython import embed
+  import datetime
+
   last_time = datetime.datetime.now()
   print(last_time)
+  model_params = torch.nn.DataParallel(model_params)
 
-  profiler = torch.profiler.profile(
+  quick_run = os.environ.get('HOTLINE_QUICK_RUN')
+  if quick_run:
+      wait = 1
+      warmup = 1
+      active = 1
+  else:
+      wait = 20
+      warmup = 19
+      active = 1
+      # wait = 1
+      # warmup = 0
+      # active = 1
+  max_steps = wait + warmup + active
+
+  metadata = {
+    'model': 'RNN',
+    'dataset': 'LibriSpeech',
+    'runtime': [],
+  }
+
+
+
+  torch_profiler = torch.profiler.profile(
     activities=[
         torch.profiler.ProfilerActivity.CPU,
         torch.profiler.ProfilerActivity.CUDA],
     schedule=torch.profiler.schedule(
-        # wait=0,
-        # warmup=0,
-        # active=1),
-        wait=3,
-        warmup=3,
-        active=1),
-    on_trace_ready=hotline.analyze(model_params, input_queue, run_name='rnn-t'),
+        wait=wait,
+        warmup=warmup,
+        active=active),
+    on_trace_ready=hotline.analyze(
+        model_params,
+        input_queue,
+        run_name='RNN',
+        test_accuracy=True,
+        output_dir='/home/dans/cpath',
+        metadata=metadata,
+    ),
     record_shapes=False,
     profile_memory=False,
     with_stack=False
@@ -241,17 +272,25 @@ def train_once(workload: spec.Workload,
           global_step=global_step,
           rng=update_rng)
 
+
+
+      # Hotline profiling
       this_time = datetime.datetime.now()
       tdelta = this_time - last_time
       logging.info(f'tdelta: {tdelta}')
+      metadata['runtime'].append(tdelta)
       last_time = this_time
-
-      profiler.step()
       logging.info(f'global_step: {global_step}\n')
-      if global_step == 6:
+      torch_profiler.step()
+      hotline.annotate.step()
+      if global_step >= max_steps:
         import sys
         sys.exit(0)
+      global_step += 1
       continue
+
+
+
 
     except spec.TrainingCompleteError:
       training_complete = True
