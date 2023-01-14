@@ -20,9 +20,11 @@ def get_batch_size(workload_name):
     num_gpus = torch.cuda.device_count()
     if 'V100-SXM2-16GB' in gpu_model:
       batch_sizes = {'ogbg': min(4096 * num_gpus, 32768)}
+    elif '3090' in gpu_model:
+      batch_sizes = {'ogbg': min(6144 * num_gpus, 32768)}
+
   from absl import logging
   logging.info(f'\n\nbatch_sizes: {batch_sizes}\n')
-
   return batch_sizes[workload_name]
 
 
