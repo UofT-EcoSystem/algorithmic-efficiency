@@ -97,7 +97,7 @@ class LibriSpeechWorkload(spec.Workload):
         num_workers=2,
         pin_memory=True,
         collate_fn=pad_collate)
-    return iter(loader)
+    return loader
 
   @property
   def target_value(self):
