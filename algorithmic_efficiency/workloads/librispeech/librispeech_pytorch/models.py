@@ -93,9 +93,9 @@ class BatchRNN(nn.Module):
     self.rnn.flatten_parameters()
 
   def forward(self, x, output_lengths):
-    with hotline.annotate('BatchNorm'):
-      self.flatten_parameters()
-      if self.batch_norm is not None:
+    self.flatten_parameters()
+    if self.batch_norm is not None:
+      with hotline.annotate('BatchNorm'):
         x = self.batch_norm(x)
 
     with hotline.annotate('LSTM'):
