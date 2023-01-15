@@ -86,21 +86,25 @@ class BatchRNN(nn.Module):
     self.rnn.flatten_parameters()
 
   def forward(self, x, output_lengths):
-    self.flatten_parameters()
-    if self.batch_norm is not None:
-      x = self.batch_norm(x)
-    x = x.transpose(0, 1)
-    total_length = x.size(1)
-    x = nn.utils.rnn.pack_padded_sequence(
-        x, output_lengths.cpu(), batch_first=True)
-    x, _ = self.rnn(x)
-    x, _ = nn.utils.rnn.pad_packed_sequence(
-        x, batch_first=True, total_length=total_length)
-    x = x.transpose(0, 1)
-    x = x.view(x.size(0), x.size(1), 2,
-               -1).sum(2).view(x.size(0), x.size(1),
-                               -1)  # (TxNxH*2) -> (TxNxH) by sum
-    return x
+    with hotline.annotate('BatchNorm'):
+    with hotline.annotate('BatchNorm'):
+      self.flatten_parameters()
+      if self.batch_norm is not None:
+        x = self.batch_norm(x)
+      x = x.transpose(0, 1)
+      total_length = x.size(1)
+      x = nn.utils.rnn.pack_padded_sequence(
+          x, output_lengths.cpu(), batch_first=True)
+    with hotline.annotate('LSTM'):
+      x, _ = self.rnn(x)
+    with hotline.annotate('View'):
+      x, _ = nn.utils.rnn.pad_packed_sequence(
+          x, batch_first=True, total_length=total_length)
+      x = x.transpose(0, 1)
+      x = x.view(x.size(0), x.size(1), 2,
+                -1).sum(2).view(x.size(0), x.size(1),
+                                -1)  # (TxNxH*2) -> (TxNxH) by sum
+      return x
 
 
 class CNNLSTM(nn.Module):
@@ -164,7 +168,7 @@ class CNNLSTM(nn.Module):
     return seq_len.int()
 
   def forward(self, x, lengths, transcripts):
-    with hotline.annotate('Conv'):
+    with hotline.annotate('MaskedConv'):
       lengths = lengths.int()
       output_lengths = self.get_seq_lens(lengths)
       x, _ = self.conv(x, output_lengths)  # TODO: THIS IS NOT A CONV IT IS A SEQUENTIAL
@@ -175,11 +179,11 @@ class CNNLSTM(nn.Module):
     x = x.transpose(1, 2).transpose(0, 1).contiguous()  # TxNxH
 
     for idx, rnn in enumerate(self.rnns):
-      with hotline.annotate(f'RNN {idx}'):
+      with hotline.annotate(f'BatchRNN-{idx}'):
         x = rnn(x, output_lengths)
 
     with hotline.annotate('Linear'):
-      x = self.fc(x)
+      x = self.fc(x)   # THIS IS A SEQUENTIAL
 
     with hotline.annotate('SoftMax'):
       log_probs = x.log_softmax(dim=-1).transpose(0, 1)
