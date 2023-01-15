@@ -10,6 +10,9 @@ import torch
 from torch import nn
 
 
+import hotline
+
+
 class SequenceWise(nn.Module):
 
   def __init__(self, module):
@@ -161,20 +164,25 @@ class CNNLSTM(nn.Module):
     return seq_len.int()
 
   def forward(self, x, lengths, transcripts):
-    lengths = lengths.int()
-    output_lengths = self.get_seq_lens(lengths)
-    x, _ = self.conv(x, output_lengths)
+    with hotline.annotate('Conv'):
+      lengths = lengths.int()
+      output_lengths = self.get_seq_lens(lengths)
+      x, _ = self.conv(x, output_lengths)  # TODO: THIS IS NOT A CONV IT IS A SEQUENTIAL
 
     sizes = x.size()
     x = x.view(sizes[0], sizes[1] * sizes[2],
                sizes[3])  # Collapse feature dimension
     x = x.transpose(1, 2).transpose(0, 1).contiguous()  # TxNxH
 
-    for rnn in self.rnns:
-      x = rnn(x, output_lengths)
+    for idx, rnn in enumerate(self.rnns):
+      with hotline.annotate(f'RNN {idx}'):
+        x = rnn(x, output_lengths)
 
-    x = self.fc(x)
-    log_probs = x.log_softmax(dim=-1).transpose(0, 1)
+    with hotline.annotate('Linear'):
+      x = self.fc(x)
+
+    with hotline.annotate('SoftMax'):
+      log_probs = x.log_softmax(dim=-1).transpose(0, 1)
 
     return log_probs, output_lengths
 

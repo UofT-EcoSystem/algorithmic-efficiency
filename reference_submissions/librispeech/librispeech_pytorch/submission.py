@@ -10,9 +10,12 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 ctc_loss = torch.nn.CTCLoss(blank=0, reduction="none")
 
 
+import hotline
+
+
 def get_batch_size(workload_name):
   # Return the global batch size.
-  default = 8
+  default = 256
   batch_sizes = {'librispeech': default}
 
   quick_run = os.environ.get('HOTLINE_QUICK_RUN')
@@ -22,9 +25,9 @@ def get_batch_size(workload_name):
     gpu_model = torch.cuda.get_device_name(0)
     num_gpus = torch.cuda.device_count()
     if 'V100-SXM2-16GB' in gpu_model:
-      batch_sizes = {'librispeech': min(8 * num_gpus, default)}
+      batch_sizes = {'librispeech': min(32 * num_gpus, default)}
     elif '3090' in gpu_model:
-      batch_sizes = {'librispeech': min(8  * num_gpus, default)}
+      batch_sizes = {'librispeech': min(64  * num_gpus, default)}
   from absl import logging
   logging.info(f'\n\nbatch_sizes: {batch_sizes}\n')
 
@@ -65,15 +68,22 @@ def update_params(
   del loss_type
   del hyperparameters
 
-  optimizer_state.zero_grad()
+  with hotline.annotate('Forward'):
+    (log_y, output_lengths), _ = workload.model_fn(
+        current_param_container, batch, None,
+        spec.ForwardPassMode.TRAIN, rng, False)
 
-  (log_y, output_lengths), _ = workload.model_fn(
-      current_param_container, batch, None,
-      spec.ForwardPassMode.TRAIN, rng, False)
+  with hotline.annotate('Calc Loss'):
+    train_ctc_loss = torch.mean(workload.loss_fn(batch, (log_y, output_lengths)))
 
-  train_ctc_loss = torch.mean(workload.loss_fn(batch, (log_y, output_lengths)))
-  train_ctc_loss.backward()
-  optimizer_state.step()
+  with hotline.annotate('Zero Grad'):
+    optimizer_state.zero_grad()
+
+  with hotline.annotate('Backward'):
+    train_ctc_loss.backward()
+
+  with hotline.annotate('Optimizer'):
+    optimizer_state.step()
 
   return optimizer_state, current_param_container, None
 
