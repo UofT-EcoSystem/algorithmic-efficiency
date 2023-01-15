@@ -11,6 +11,7 @@ from torch import nn
 
 
 import hotline
+from IPython import embed
 
 
 class SequenceWise(nn.Module):
@@ -26,11 +27,15 @@ class SequenceWise(nn.Module):
     self.module = module
 
   def forward(self, x):
-    t, n = x.size(0), x.size(1)
-    x = x.view(t * n, -1)
-    x = self.module(x)
-    x = x.view(t, n, -1)
-    return x
+    module_name = self.module.__class__.__name__  # ex: Linear
+    if module_name == 'Sequential':
+      module_name = 'ignore ' + module_name
+    with hotline.annotate(module_name):
+      t, n = x.size(0), x.size(1)
+      x = x.view(t * n, -1)
+      x = self.module(x)
+      x = x.view(t, n, -1)
+      return x
 
 
 class MaskConv(nn.Module):
@@ -57,15 +62,17 @@ class MaskConv(nn.Module):
       Masked output from the module
     """
     for module in self.seq_module:
-      x = module(x)
-      mask = torch.BoolTensor(x.size()).fill_(0)
-      if x.is_cuda:
-        mask = mask.cuda()
-      for i, length in enumerate(lengths):
-        length = length.item()
-        if (mask[i].size(2) - length) > 0:
-          mask[i].narrow(2, length, mask[i].size(2) - length).fill_(1)
-      x = x.masked_fill(mask, 0)
+      module_name = module.__class__.__name__  # ex: Linear
+      with hotline.annotate(module_name):
+        x = module(x)
+        mask = torch.BoolTensor(x.size()).fill_(0)
+        if x.is_cuda:
+          mask = mask.cuda()
+        for i, length in enumerate(lengths):
+          length = length.item()
+          if (mask[i].size(2) - length) > 0:
+            mask[i].narrow(2, length, mask[i].size(2) - length).fill_(1)
+        x = x.masked_fill(mask, 0)
     return x, lengths
 
 
@@ -87,17 +94,18 @@ class BatchRNN(nn.Module):
 
   def forward(self, x, output_lengths):
     with hotline.annotate('BatchNorm'):
-    with hotline.annotate('BatchNorm'):
       self.flatten_parameters()
       if self.batch_norm is not None:
         x = self.batch_norm(x)
+
+    with hotline.annotate('LSTM'):
       x = x.transpose(0, 1)
       total_length = x.size(1)
       x = nn.utils.rnn.pack_padded_sequence(
           x, output_lengths.cpu(), batch_first=True)
-    with hotline.annotate('LSTM'):
       x, _ = self.rnn(x)
-    with hotline.annotate('View'):
+
+    with hotline.annotate('Sum'):
       x, _ = nn.utils.rnn.pad_packed_sequence(
           x, batch_first=True, total_length=total_length)
       x = x.transpose(0, 1)
@@ -168,10 +176,10 @@ class CNNLSTM(nn.Module):
     return seq_len.int()
 
   def forward(self, x, lengths, transcripts):
-    with hotline.annotate('MaskedConv'):
+    with hotline.annotate('MaskConv'):
       lengths = lengths.int()
       output_lengths = self.get_seq_lens(lengths)
-      x, _ = self.conv(x, output_lengths)  # TODO: THIS IS NOT A CONV IT IS A SEQUENTIAL
+      x, _ = self.conv(x, output_lengths)
 
     sizes = x.size()
     x = x.view(sizes[0], sizes[1] * sizes[2],
@@ -183,7 +191,8 @@ class CNNLSTM(nn.Module):
         x = rnn(x, output_lengths)
 
     with hotline.annotate('Linear'):
-      x = self.fc(x)   # THIS IS A SEQUENTIAL
+      x = self.fc(x)
+      # x = hotline.annotate_module_list(self.fc, x)
 
     with hotline.annotate('SoftMax'):
       log_probs = x.log_softmax(dim=-1).transpose(0, 1)
