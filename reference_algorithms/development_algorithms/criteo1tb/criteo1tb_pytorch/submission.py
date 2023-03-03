@@ -30,6 +30,7 @@ def get_batch_size(workload_name):
     elif '3090' in gpu_model:
       batch_sizes = {'criteo1tb': min(196_608  * num_gpus, default)}
   from absl import logging
+  logging.info(f'\n\num_gpus: {num_gpus}\n')
   logging.info(f'\n\nbatch_sizes: {batch_sizes}\n')
 
   return batch_sizes[workload_name]

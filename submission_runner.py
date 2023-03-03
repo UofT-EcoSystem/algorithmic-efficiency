@@ -318,6 +318,8 @@ def train_once(workload: spec.Workload,
   metadata = {
     'model': 'DLRM',
     'dataset': 'Criteo1TB',
+    'batch_size': global_batch_size,
+    'optimizer': 'AdamW',
     'runtime': [],
   }
 
