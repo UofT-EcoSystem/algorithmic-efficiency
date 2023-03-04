@@ -218,6 +218,8 @@ def train_once(workload: spec.Workload,
   metadata = {
     'model': 'RNN',
     'dataset': 'LibriSpeech',
+    'batch_size': global_batch_size,
+    'optimizer': 'Adam',
     'runtime': [],
   }
 
