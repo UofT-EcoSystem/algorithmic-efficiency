@@ -307,6 +307,8 @@ kill %; python3 submission_runner.py \
   metadata = {
     'model': 'Transformer',
     'dataset': 'WMT17',
+    'batch_size': global_batch_size,
+    'optimizer': 'Adam',
     'runtime': [],
   }
 
@@ -340,14 +342,15 @@ kill %; python3 submission_runner.py \
     start_time = time.time()
 
     with profiler.profile('Data selection'):
-      batch = data_selection(workload,
-                             input_queue,
-                             optimizer_state,
-                             model_params,
-                             model_state,
-                             hyperparameters,
-                             global_step,
-                             data_select_rng)
+      with hotline.annotate('Load Data'):
+        batch = data_selection(workload,
+                              input_queue,
+                              optimizer_state,
+                              model_params,
+                              model_state,
+                              hyperparameters,
+                              global_step,
+                              data_select_rng)
     try:
       with profiler.profile('Update parameters'):
         optimizer_state, model_params, model_state = update_params(
