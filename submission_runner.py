@@ -337,6 +337,8 @@ kill %; rm -rf /home/dans/algorithmic-efficiency/experiment_dir/baseline/ogbg_py
 
   metadata = {
     'model': 'GNN',
+    'batch_size': global_batch_size,
+    'optimizer': 'Adam',
     'dataset': 'OGBG MOLPCBA',
     'runtime': [],
   }
@@ -374,14 +376,15 @@ kill %; rm -rf /home/dans/algorithmic-efficiency/experiment_dir/baseline/ogbg_py
       start_time = sync_ddp_time(start_time, DEVICE)
 
     with profiler.profile('Data selection'):
-      batch = data_selection(workload,
-                             input_queue,
-                             optimizer_state,
-                             model_params,
-                             model_state,
-                             hyperparameters,
-                             global_step,
-                             data_select_rng)
+      with hotline.annotate('Load Data'):
+        batch = data_selection(workload,
+                              input_queue,
+                              optimizer_state,
+                              model_params,
+                              model_state,
+                              hyperparameters,
+                              global_step,
+                              data_select_rng)
     try:
       with profiler.profile('Update parameters'):
         optimizer_state, model_params, model_state = update_params(
