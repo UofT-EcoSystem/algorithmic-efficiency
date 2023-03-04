@@ -253,13 +253,14 @@ def train_once(workload: spec.Workload,
     step_rng = prng.fold_in(rng, global_step)
     data_select_rng, update_rng, eval_rng = prng.split(step_rng, 3)
     start_time = time.time()
-    batch = data_selection(workload,
-                           input_queue,
-                           optimizer_state,
-                           model_params,
-                           hyperparameters,
-                           global_step,
-                           data_select_rng)
+    with hotline.annotate('Load Data'):
+      batch = data_selection(workload,
+                            input_queue,
+                            optimizer_state,
+                            model_params,
+                            hyperparameters,
+                            global_step,
+                            data_select_rng)
     try:
       optimizer_state, model_params, model_state = update_params(
           workload=workload,
