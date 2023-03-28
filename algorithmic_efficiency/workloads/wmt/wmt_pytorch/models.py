@@ -139,13 +139,13 @@ class Transformer(nn.Module):
                dropout_rate: float = 0.1,
                attention_dropout_rate: float = 0.1,
                layer_norm_eps: float = 1e-6):
-    quick_run = os.environ.get('HOTLINE_QUICK_RUN')
-    if quick_run:
-      from absl import logging
-      logging.info(f'less model params')
-      nhead = 2
-      d_hid = 64
-      nlayers = 2
+    # quick_run = os.environ.get('HOTLINE_QUICK_RUN')
+    # if quick_run:
+    #   from absl import logging
+    #   logging.info(f'less model params')
+    #   nhead = 2
+    #   d_hid = 64
+    #   nlayers = 2
 
     super().__init__()
 
@@ -202,22 +202,22 @@ class Transformer(nn.Module):
     Returns:
       output Tensor of shape [batch_size, seq_len, ntoken]
     """
-    with hotline.annotate('Encoder'):
-      if src.size(0) != tgt.size(0):
-        raise RuntimeError('The batch size of src and tgt must be equal.')
-      memory = self.encoder(
-          src,
-          inputs_positions=inputs_positions,
-          inputs_segmentation=inputs_segmentation)
-    with hotline.annotate('Decoder'):
-      output = self.decoder(
-          tgt,
-          memory,
-          src,  # just for calculating the padding mask
-          targets_positions=targets_positions,
-          inputs_segmentation=inputs_segmentation,
-          targets_segmentation=targets_segmentation,
-          decode=decode)
+  # with hotline.annotate('Encoder'):
+    if src.size(0) != tgt.size(0):
+      raise RuntimeError('The batch size of src and tgt must be equal.')
+    memory = self.encoder(
+        src,
+        inputs_positions=inputs_positions,
+        inputs_segmentation=inputs_segmentation)
+  # with hotline.annotate('Decoder'):
+    output = self.decoder(
+        tgt,
+        memory,
+        src,  # just for calculating the padding mask
+        targets_positions=targets_positions,
+        inputs_segmentation=inputs_segmentation,
+        targets_segmentation=targets_segmentation,
+        decode=decode)
     return output
 
 
@@ -251,14 +251,14 @@ class Encoder(nn.Module):
               inputs_positions: Optional[Tensor] = None,
               inputs_segmentation: Optional[Tensor] = None) -> Tensor:
     # return src
-    with hotline.annotate('Embedding'):
-      src = src.to(torch.int)
-      src_mask = make_src_mask(src, inputs_segmentation, self.nhead)
-      src = self.shared_embedding(src)
-    with hotline.annotate('PositionalEncoding'):
-      src = self.pos_encoder(src, inputs_positions)
-    with hotline.annotate('TransformerEncoder'):
-      memory = self.encoder(src, mask=src_mask)
+  # with hotline.annotate('Embedding'):
+    src = src.to(torch.int)
+    src_mask = make_src_mask(src, inputs_segmentation, self.nhead)
+    src = self.shared_embedding(src)
+  # with hotline.annotate('PositionalEncoding'):
+    src = self.pos_encoder(src, inputs_positions)
+  # with hotline.annotate('TransformerEncoder'):
+    memory = self.encoder(src, mask=src_mask)
     return memory
 
 
@@ -298,35 +298,35 @@ class Decoder(nn.Module):
     # # input float32(32, 256, 1024)
     # output = torch.zeros((32, 256, 32000), device='cuda:0', dtype=torch.float32, requires_grad=True)
     # return output
-    with hotline.annotate('Embedding'):
-      tgt = tgt.to(torch.int)
-      tgt_mask, memory_mask = make_tgt_and_memory_mask(
-          tgt, src, inputs_segmentation, targets_segmentation,
-          decode, self.nhead)
-      if not decode:
-        tgt = shift_right(tgt)
-      tgt = self.shared_embedding(tgt) # ret float32(32, 256, 1024)
-      # tgt = torch.zeros((32, 256, 1024), device='cuda:0', dtype=torch.float32, requires_grad=True)
-    with hotline.annotate('PositionalEncoding'):
-      tgt = self.pos_encoder(tgt, targets_positions, decode=decode, cache=cache) # ret float32(32, 256)
-    with hotline.annotate('TransformerDecoder'):
-      if decode:
-        tgt, cache = tgt
-      output = self.decoder(  # ret float32(32, 256, 1024)
-          tgt,
-          memory,
-          tgt_mask=tgt_mask,
-          memory_mask=memory_mask,
-          decode=decode,
-          max_len=max_len,
-          cache=cache)
-      if decode:
-        output, cache = output
-      normalize = math.sqrt(output.shape[-1])
-    with hotline.annotate('Linear'):
-      output = torch.matmul(output, self.shared_embedding.weight.T) / normalize  # ret float32(32, 256, 32000)
+  # with hotline.annotate('Embedding'):
+    tgt = tgt.to(torch.int)
+    tgt_mask, memory_mask = make_tgt_and_memory_mask(
+        tgt, src, inputs_segmentation, targets_segmentation,
+        decode, self.nhead)
+    if not decode:
+      tgt = shift_right(tgt)
+    tgt = self.shared_embedding(tgt) # ret float32(32, 256, 1024)
     # tgt = torch.zeros((32, 256, 1024), device='cuda:0', dtype=torch.float32, requires_grad=True)
-    # output = torch.matmul(tgt, self.shared_embedding.weight.T) # my modification
+  # with hotline.annotate('PositionalEncoding'):
+    tgt = self.pos_encoder(tgt, targets_positions, decode=decode, cache=cache) # ret float32(32, 256)
+  # with hotline.annotate('TransformerDecoder'):
+    if decode:
+      tgt, cache = tgt
+    output = self.decoder(  # ret float32(32, 256, 1024)
+        tgt,
+        memory,
+        tgt_mask=tgt_mask,
+        memory_mask=memory_mask,
+        decode=decode,
+        max_len=max_len,
+        cache=cache)
+    if decode:
+      output, cache = output
+    normalize = math.sqrt(output.shape[-1])
+  # with hotline.annotate('Linear'):
+    output = torch.matmul(output, self.shared_embedding.weight.T) / normalize  # ret float32(32, 256, 32000)
+  # tgt = torch.zeros((32, 256, 1024), device='cuda:0', dtype=torch.float32, requires_grad=True)
+  # output = torch.matmul(tgt, self.shared_embedding.weight.T) # my modification
     if decode:
       return output, cache
     # output = torch.zeros((32, 256, 32000), device='cuda:0', dtype=torch.float32, requires_grad=True)
@@ -368,28 +368,26 @@ class PositionalEncoding(nn.Module):
     """
     # return x
     # We use a cache position index for tracking decoding position.
-    # with hotline.annotate('Index'):
-    with hotline.annotate('Dropout'):
-      if decode:
-        name = self._get_name()
-        if cache is None:
-          cache = {
-              name: {
-                  'cache_index':
-                      torch.tensor(0, dtype=torch.long, device=self.pe.device)
-              }
-          }
-        pe = self.pe[0, cache[name]['cache_index'], :]
-        cache[name]['cache_index'] += 1
-        return self.dropout(x + pe), cache
-      if inputs_positions is None:
-        # normal unpacked case:
-        pe = self.pe[:, :x.size(1), :]
-      else:
-        # for packed data we need to use known position indices:
-        pe = self.pe[0, inputs_positions, :]
+    # with hotline.annotate('Dropout'):
+    if decode:
+      name = self._get_name()
+      if cache is None:
+        cache = {
+            name: {
+                'cache_index':
+                    torch.tensor(0, dtype=torch.long, device=self.pe.device)
+            }
+        }
+      pe = self.pe[0, cache[name]['cache_index'], :]
+      cache[name]['cache_index'] += 1
+      return self.dropout(x + pe), cache
+    if inputs_positions is None:
+      # normal unpacked case:
+      pe = self.pe[:, :x.size(1), :]
+    else:
+      # for packed data we need to use known position indices:
+      pe = self.pe[0, inputs_positions, :]
 
-    # with hotline.annotate('Add'):
       x = x + pe
       return self.dropout(x)
 
@@ -479,49 +477,49 @@ class TransformerEncoderLayer(nn.TransformerEncoderLayer):
 
       # see Fig. 1 of https://arxiv.org/pdf/2002.04745v1.pdf
 
-      with hotline.annotate('TransformerEncoderLayer'):
-        x = src
-        if self.norm_first:
-            with hotline.annotate('LayerNorm'):
-              xx = self.norm1(x)
-            x = x + self._sa_block(xx, src_mask, src_key_padding_mask)
-            with hotline.annotate('LayerNorm'):
-              xx = self.norm2(x)
-            x = x + self._ff_block(xx)
-        else:
-            x = x + self._sa_block(x, src_mask, src_key_padding_mask)
-            with hotline.annotate('LayerNorm'):
-              x = self.norm1(x)
-            x = x + self._ff_block(x)
-            with hotline.annotate('LayerNorm'):
-              x = self.norm2(x)
+      # with hotline.annotate('TransformerEncoderLayer'):
+      x = src
+      if self.norm_first:
+        # with hotline.annotate('LayerNorm'):
+          xx = self.norm1(x)
+          x = x + self._sa_block(xx, src_mask, src_key_padding_mask)
+        # with hotline.annotate('LayerNorm'):
+          xx = self.norm2(x)
+          x = x + self._ff_block(xx)
+      else:
+          x = x + self._sa_block(x, src_mask, src_key_padding_mask)
+        # with hotline.annotate('LayerNorm'):
+          x = self.norm1(x)
+          x = x + self._ff_block(x)
+        # with hotline.annotate('LayerNorm'):
+          x = self.norm2(x)
 
       return x
 
   # self-attention block
   def _sa_block(self, x: Tensor,
                 attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor]) -> Tensor:
-      with hotline.annotate('Self-Attention'):
+      # with hotline.annotate('Self-Attention'):
         x = self.self_attn(x, x, x,
                             attn_mask=attn_mask,
                             key_padding_mask=key_padding_mask,
                             need_weights=False)[0]
-      with hotline.annotate('Dropout'):
+      # with hotline.annotate('Dropout'):
         return self.dropout1(x)
 
   # feed forward block
   def _ff_block(self, x: Tensor) -> Tensor:
-      with hotline.annotate('Feed-Forward'):
-        with hotline.annotate('linear'):
-          x = self.linear1(x)
-        with hotline.annotate('relu'):
-          x = self.activation(x)
-        with hotline.annotate('dropout'):
-          x = self.dropout(x)
-        with hotline.annotate('linear'):
-          x = self.linear2(x)
-        with hotline.annotate('dropout'):
-          x = self.dropout2(x)
+    # with hotline.annotate('Feed-Forward'):
+      # with hotline.annotate('linear'):
+        x = self.linear1(x)
+      # with hotline.annotate('relu'):
+        x = self.activation(x)
+      # with hotline.annotate('dropout'):
+        x = self.dropout(x)
+      # with hotline.annotate('linear'):
+        x = self.linear2(x)
+      # with hotline.annotate('dropout'):
+        x = self.dropout2(x)
         return x
 
 # Modified to use cache for autoregressive decoding.
@@ -589,19 +587,19 @@ class TransformerDecoder(nn.Module):
     output = tgt
 
     for idx, mod in enumerate(self.layers):
-      with hotline.annotate(f'Layer{idx+1}'):
-        output, cache = mod(
-            output,
-            memory,
-            tgt_mask=tgt_mask,
-            memory_mask=memory_mask,
-            decode=decode,
-            max_len=max_len,
-            cache=cache,
-            index=idx)
+      # with hotline.annotate(f'Layer{idx+1}'):
+      output, cache = mod(
+          output,
+          memory,
+          tgt_mask=tgt_mask,
+          memory_mask=memory_mask,
+          decode=decode,
+          max_len=max_len,
+          cache=cache,
+          index=idx)
 
     if self.norm is not None:
-      with hotline.annotate('LayerNorm'):
+      # with hotline.annotate('LayerNorm'):
         output = self.norm(output)
 
     if decode:
@@ -721,11 +719,11 @@ class TransformerDecoderLayer(nn.TransformerDecoderLayer):
           cache=cache,
           index=index)
       x = x + sa_out
-      with hotline.annotate('LayerNorm'):
-        x = self.norm2(x)
+    # with hotline.annotate('LayerNorm'):
+      x = self.norm2(x)
       x = x + self._mha_block(x, memory, memory_mask, None)
-      with hotline.annotate('LayerNorm'):
-        x = self.norm3(x)
+    # with hotline.annotate('LayerNorm'):
+      x = self.norm3(x)
       x = x + self._ff_block(x)
     # else:
     #   sa_out, cache = self._sa_block(
@@ -750,47 +748,47 @@ class TransformerDecoderLayer(nn.TransformerDecoderLayer):
       max_len: Optional[int] = None,
       cache: Optional[dict] = None,
       index: Optional[int] = None) -> Tensor:
-    with hotline.annotate('Self-Attention'):
-      x, _, cache = self.self_attn(
-          x,
-          x,
-          x,
-          attn_mask=attn_mask,
-          need_weights=False,
-          decode=decode,
-          max_len=max_len,
-          cache=cache,
-          index=index)
-    with hotline.annotate('Dropout'):
-      out = self.dropout1(x)
+    # with hotline.annotate('Self-Attention'):
+    x, _, cache = self.self_attn(
+        x,
+        x,
+        x,
+        attn_mask=attn_mask,
+        need_weights=False,
+        decode=decode,
+        max_len=max_len,
+        cache=cache,
+        index=index)
+  # with hotline.annotate('Dropout'):
+    out = self.dropout1(x)
     return out, cache
 
   # multihead attention block
   def _mha_block(self, x: Tensor, mem: Tensor,
                   attn_mask: Optional[Tensor], key_padding_mask: Optional[Tensor]) -> Tensor:
-      with hotline.annotate('Multihead-Attention'):
-        x = self.multihead_attn(x, mem, mem,
-                                attn_mask=attn_mask,
-                                key_padding_mask=key_padding_mask,
-                                need_weights=False)[0]
-      with hotline.annotate('Dropout'):
-        out = self.dropout2(x)
+    # with hotline.annotate('Multihead-Attention'):
+      x = self.multihead_attn(x, mem, mem,
+                              attn_mask=attn_mask,
+                              key_padding_mask=key_padding_mask,
+                              need_weights=False)[0]
+    # with hotline.annotate('Dropout'):
+      out = self.dropout2(x)
       return out
 
   # feed forward block
   # From: /home/dans/.local/lib/python3.8/site-packages/torch/nn/modules/transformer.py
   def _ff_block(self, x: Tensor) -> Tensor:
-      with hotline.annotate('Feed-Forward'):
-        with hotline.annotate('linear'):
-          x = self.linear1(x)
-        with hotline.annotate('relu'):
-          x = self.activation(x)
-        with hotline.annotate('dropout'):
-          x = self.dropout(x)
-        with hotline.annotate('linear'):
-          x = self.linear2(x)
-        with hotline.annotate('dropout'):
-          x = self.dropout3(x)
+  # with hotline.annotate('Feed-Forward'):
+    # with hotline.annotate('linear'):
+      x = self.linear1(x)
+    # with hotline.annotate('relu'):
+      x = self.activation(x)
+    # with hotline.annotate('dropout'):
+      x = self.dropout(x)
+    # with hotline.annotate('linear'):
+      x = self.linear2(x)
+    # with hotline.annotate('dropout'):
+      x = self.dropout3(x)
       return x
 
 
@@ -965,17 +963,17 @@ class MultiheadAttention(nn.MultiheadAttention):
     name = f'decoder.layers.{index}.self_attn'
     loc_cache = cache[name] if decode and name in cache else None
 
-    with hotline.annotate('ignore multi_head_attention_forward'):
-      attn_output, attn_output_weights, loc_cache = multi_head_attention_forward(
-          query, key, value, self.embed_dim, self.num_heads,
-          self.in_proj_bias, self.bias_k, self.bias_v,
-          self.dropout, self.out_proj.weight, self.out_proj.bias,
-          training=self.training, need_weights=need_weights, attn_mask=attn_mask,
-          q_proj_weight=self.q_proj_weight,
-          k_proj_weight=self.k_proj_weight,
-          v_proj_weight=self.v_proj_weight,
-          average_attn_weights=average_attn_weights,
-          decode=decode, cache=loc_cache, max_len=max_len)
+    # with hotline.annotate('ignore multi_head_attention_forward'):
+    attn_output, attn_output_weights, loc_cache = multi_head_attention_forward(
+        query, key, value, self.embed_dim, self.num_heads,
+        self.in_proj_bias, self.bias_k, self.bias_v,
+        self.dropout, self.out_proj.weight, self.out_proj.bias,
+        training=self.training, need_weights=need_weights, attn_mask=attn_mask,
+        q_proj_weight=self.q_proj_weight,
+        k_proj_weight=self.k_proj_weight,
+        v_proj_weight=self.v_proj_weight,
+        average_attn_weights=average_attn_weights,
+        decode=decode, cache=loc_cache, max_len=max_len)
 
     if decode:
       cache[name] = loc_cache
@@ -1009,7 +1007,7 @@ def multi_head_attention_forward(
     decode: bool = False,
     cache: Optional[dict] = None,
     max_len: Optional[int] = None) -> Tuple[Tensor, Optional[Tensor]]:
-  r"""
+    r"""
   Args:
     query, key, value: map a query and a set of key-value pairs to an output.
         See "Attention Is All You Need" for more details.
@@ -1065,7 +1063,7 @@ def multi_head_attention_forward(
       per head of shape :math:`(num_heads, L, S)` when input is unbatched or
       :math:`(N, num_heads, L, S)`.
   """
-  with hotline.annotate("ignore before"):
+    # with hotline.annotate("ignore before"):
     # set up shape vars
     tgt_len, bsz, embed_dim = query.shape
     src_len, _, _ = key.shape
@@ -1203,19 +1201,17 @@ def multi_head_attention_forward(
   #
   # (deep breath) calculate attention and out projection
   #
-  with hotline.annotate('ignore deep breath'):
-    with hotline.annotate('ignore scaled_dot_product_attention'):
-      attn_output, attn_output_weights = _scaled_dot_product_attention(
-          q, k, v, attn_mask, dropout_rate)
-    # with hotline.annotate('Contiguous'):
-    with hotline.annotate('Linear'):
-      attn_output = attn_output.transpose(0, 1).contiguous().view(
-          tgt_len * bsz, embed_dim)
-      attn_output = F.linear(attn_output, out_proj_weight, out_proj_bias)
-    # with hotline.annotate('View'):
-      attn_output = attn_output.view(tgt_len, bsz, attn_output.size(1))
+  # with hotline.annotate('ignore deep breath'):
+  # with hotline.annotate('ignore scaled_dot_product_attention'):
+    attn_output, attn_output_weights = _scaled_dot_product_attention(
+        q, k, v, attn_mask, dropout_rate)
+  # with hotline.annotate('Linear'):
+    attn_output = attn_output.transpose(0, 1).contiguous().view(
+        tgt_len * bsz, embed_dim)
+    attn_output = F.linear(attn_output, out_proj_weight, out_proj_bias)
+    attn_output = attn_output.view(tgt_len, bsz, attn_output.size(1))
 
-  with hotline.annotate('ignore after'):
+  # with hotline.annotate('ignore after'):
     if need_weights:
       # optionally average attention weights over heads
       attn_output_weights = attn_output_weights.view(bsz,
@@ -1262,25 +1258,25 @@ def _scaled_dot_product_attention(
         - Output: attention values have shape :math:`(B, Nt, E)`; attention weights
             have shape :math:`(B, Nt, Ns)`
     """
-    with hotline.annotate('Div'):
-      B, Nt, E = q.shape
-      q = q / math.sqrt(E)
-      # (B, Nt, E) x (B, E, Ns) -> (B, Nt, Ns)
-    with hotline.annotate('BatchedAddMatMul'):
-      if attn_mask is not None:
-          attn = torch.baddbmm(attn_mask, q, k.transpose(-2, -1))
-      else:
-          attn = torch.bmm(q, k.transpose(-2, -1))
+  # with hotline.annotate('Div'):
+    B, Nt, E = q.shape
+    q = q / math.sqrt(E)
+    # (B, Nt, E) x (B, E, Ns) -> (B, Nt, Ns)
+  # with hotline.annotate('BatchedAddMatMul'):
+    if attn_mask is not None:
+        attn = torch.baddbmm(attn_mask, q, k.transpose(-2, -1))
+    else:
+        attn = torch.bmm(q, k.transpose(-2, -1))
 
-    with hotline.annotate('SoftMax'):
-      attn = F.softmax(attn, dim=-1)
-    with hotline.annotate('Dropout'):
-      if dropout_p > 0.0:
-          attn = F.dropout(attn, p=dropout_p)
-      # (B, Nt, Ns) x (B, Ns, E) -> (B, Nt, E)
-    with hotline.annotate('BatchMatMul'):
-      output = torch.bmm(attn, v)
-      return output, attn
+  # with hotline.annotate('SoftMax'):
+    attn = F.softmax(attn, dim=-1)
+  # with hotline.annotate('Dropout'):
+    if dropout_p > 0.0:
+        attn = F.dropout(attn, p=dropout_p)
+    # (B, Nt, Ns) x (B, Ns, E) -> (B, Nt, E)
+  # with hotline.annotate('BatchMatMul'):
+    output = torch.bmm(attn, v)
+    return output, attn
 
 
 def _in_projection(
@@ -1333,10 +1329,10 @@ def _in_projection(
   assert b_q is None or b_q.shape == (Eq,), f"expecting query bias shape of {(Eq,)}, but got {b_q.shape}"
   assert b_k is None or b_k.shape == (Eq,), f"expecting key bias shape of {(Eq,)}, but got {b_k.shape}"
   assert b_v is None or b_v.shape == (Eq,), f"expecting value bias shape of {(Eq,)}, but got {b_v.shape}"
-  with hotline.annotate('Linear'):
-    q = F.linear(q, w_q, b_q)
-  with hotline.annotate('Linear'):
-    k = F.linear(k, w_k, b_k)
-  with hotline.annotate('Linear'):
-    v = F.linear(v, w_v, b_v)
+# with hotline.annotate('Linear'):
+  q = F.linear(q, w_q, b_q)
+# with hotline.annotate('Linear'):
+  k = F.linear(k, w_k, b_k)
+# with hotline.annotate('Linear'):
+  v = F.linear(v, w_v, b_v)
   return q, k, v

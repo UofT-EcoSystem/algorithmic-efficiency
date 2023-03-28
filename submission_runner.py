@@ -342,29 +342,27 @@ kill %; python3 submission_runner.py \
     start_time = time.time()
 
     with profiler.profile('Data selection'):
-      with hotline.annotate('Load Data'):
-        batch = data_selection(workload,
-                              input_queue,
-                              optimizer_state,
-                              model_params,
-                              model_state,
-                              hyperparameters,
-                              global_step,
-                              data_select_rng)
+      batch = data_selection(workload,
+                            input_queue,
+                            optimizer_state,
+                            model_params,
+                            model_state,
+                            hyperparameters,
+                            global_step,
+                            data_select_rng)
     try:
-      with profiler.profile('Update parameters'):
-        optimizer_state, model_params, model_state = update_params(
-            workload=workload,
-            current_param_container=model_params,
-            current_params_types=workload.model_params_types,
-            model_state=model_state,
-            hyperparameters=hyperparameters,
-            batch=batch,
-            loss_type=workload.loss_type,
-            optimizer_state=optimizer_state,
-            eval_results=eval_results,
-            global_step=global_step,
-            rng=update_rng)
+      optimizer_state, model_params, model_state = update_params(
+          workload=workload,
+          current_param_container=model_params,
+          current_params_types=workload.model_params_types,
+          model_state=model_state,
+          hyperparameters=hyperparameters,
+          batch=batch,
+          loss_type=workload.loss_type,
+          optimizer_state=optimizer_state,
+          eval_results=eval_results,
+          global_step=global_step,
+          rng=update_rng)
 
       this_time = datetime.datetime.now()
       tdelta = this_time - last_time

@@ -134,34 +134,29 @@ def update_params(workload: spec.Workload,
   current_param_container.train()
   optimizer = optimizer_state['optimizer']
 
-  with hotline.annotate('Forward'):
-    logits, _ = workload.model_fn(
-        params=current_model,
-        augmented_and_preprocessed_input_batch=batch,
-        model_state=model_state,
-        mode=spec.ForwardPassMode.TRAIN,
-        rng=rng,
-        dropout_rate=dropout_rate,
-        aux_dropout_rate=attention_dropout_rate,
-        update_batch_norm=False)
+  logits, _ = workload.model_fn(
+      params=current_model,
+      augmented_and_preprocessed_input_batch=batch,
+      model_state=model_state,
+      mode=spec.ForwardPassMode.TRAIN,
+      rng=rng,
+      dropout_rate=dropout_rate,
+      aux_dropout_rate=attention_dropout_rate,
+      update_batch_norm=False)
 
-  with hotline.annotate('Calc Loss'):
-    targets = batch['targets']
-    weights = torch.where(targets > 0, 1.0, 0.0)
-    loss = (workload.loss_fn(targets, logits, label_smoothing=0.1) *
-            weights).sum() / weights.sum()
+  targets = batch['targets']
+  weights = torch.where(targets > 0, 1.0, 0.0)
+  loss = (workload.loss_fn(targets, logits, label_smoothing=0.1) *
+          weights).sum() / weights.sum()
 
-  with hotline.annotate('Zero Grad'):
-    optimizer.zero_grad()
+  optimizer.zero_grad()
 
-  with hotline.annotate('Backward'):
-    loss.backward()
+  loss.backward()
 
-  with hotline.annotate('Optimizer'):
-    lr = optimizer_state['scheduler'](global_step).item()
-    for g in optimizer.param_groups:
-      g['lr'] = lr
-    optimizer.step()
+  lr = optimizer_state['scheduler'](global_step).item()
+  for g in optimizer.param_groups:
+    g['lr'] = lr
+  optimizer.step()
 
   return (optimizer_state, current_param_container, None)
 
@@ -187,5 +182,4 @@ def data_selection(workload: spec.Workload,
   del hyperparameters
   del global_step
   del rng
-  with hotline.annotate('Load Data'):
-    return next(input_queue)
+  return next(input_queue)
