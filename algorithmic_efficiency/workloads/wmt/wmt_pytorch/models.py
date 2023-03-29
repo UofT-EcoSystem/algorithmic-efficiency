@@ -149,10 +149,9 @@ class Transformer(nn.Module):
 
     super().__init__()
 
-    self.shared_embedding = nn.Embedding(ntoken, d_model)
-    self.pos_encoder = PositionalEncoding(d_model, dropout_rate)
     self.encoder = Encoder(d_model,
                            nhead,
+                           ntoken,
                            d_hid,
                            nlayers,
                            dropout_rate,
@@ -167,10 +166,10 @@ class Transformer(nn.Module):
                            attention_dropout_rate,
                            layer_norm_eps)
     # Share positional encoding and embedding between encoder and decoder.
-    self.encoder.pos_encoder = self.pos_encoder
-    self.encoder.shared_embedding = self.shared_embedding
-    self.decoder.pos_encoder = self.pos_encoder
-    self.decoder.shared_embedding = self.shared_embedding
+    # self.encoder.pos_encoder = self.pos_encoder
+    # self.encoder.shared_embedding = self.shared_embedding
+    # self.decoder.pos_encoder = self.pos_encoder
+    # self.decoder.shared_embedding = self.shared_embedding
 
     self._reset_parameters()
 
@@ -227,6 +226,7 @@ class Encoder(nn.Module):
   def __init__(self,
                d_model: int = 1024,
                nhead: int = 16,
+               ntoken: int = 32000,
                d_hid: int = 4096,
                nlayers: int = 6,
                dropout_rate: float = 0.1,
@@ -234,8 +234,8 @@ class Encoder(nn.Module):
                layer_norm_eps: float = 1e-6):
     super().__init__()
     self.nhead = nhead
-    self.shared_embedding = None
-    self.pos_encoder = None
+    self.shared_embedding = nn.Embedding(ntoken, d_model)
+    self.pos_encoder = PositionalEncoding(d_model, dropout_rate)
     encoder_norm = nn.LayerNorm(d_model, eps=layer_norm_eps)
     encoder_layer = TransformerEncoderLayer(
         d_model,
@@ -512,21 +512,6 @@ class TransformerEncoderLayer(nn.Module):
       # with hotline.annotate('Dropout'):
         return self.dropout1(x)
 
-  # feed forward block
-  def _ff_block(self, x: Tensor) -> Tensor:
-    # with hotline.annotate('Feed-Forward'):
-      # with hotline.annotate('linear'):
-        x = self.linear1(x)
-      # with hotline.annotate('relu'):
-        x = self.activation(x)
-      # with hotline.annotate('dropout'):
-        x = self.dropout(x)
-      # with hotline.annotate('linear'):
-        x = self.linear2(x)
-      # with hotline.annotate('dropout'):
-        x = self.dropout2(x)
-        return x
-
 
 class FeedForward(nn.Module):
     def __init__(
@@ -647,7 +632,7 @@ class TransformerDecoder(nn.Module):
 
 
 # Modified to use cache for autoregressive decoding.
-class TransformerDecoderLayer(nn.TransformerDecoderLayer):
+class TransformerDecoderLayer(nn.Module):
   r"""TransformerDecoderLayer is made up of self-attn, multi-head-attn and
   feedforward network.
   This standard decoder layer is based on the paper "Attention Is All You Need".
@@ -698,17 +683,7 @@ class TransformerDecoderLayer(nn.TransformerDecoderLayer):
                device=None,
                dtype=None) -> None:
     factory_kwargs = {'device': device, 'dtype': dtype}
-    super().__init__(
-        d_model,
-        nhead,
-        dim_feedforward=dim_feedforward,
-        dropout=dropout_rate,
-        activation=activation,
-        layer_norm_eps=layer_norm_eps,
-        batch_first=batch_first,
-        norm_first=norm_first,
-        device=device,
-        dtype=dtype)
+    super().__init__()
     self.self_attn = MultiheadAttention(
         d_model,
         nhead,
@@ -716,6 +691,8 @@ class TransformerDecoderLayer(nn.TransformerDecoderLayer):
         batch_first=batch_first,
         bias=False,
         **factory_kwargs)
+    self.dropout1 = nn.Dropout(dropout_rate)
+    self.norm2 = nn.LayerNorm(d_model, eps=layer_norm_eps, **factory_kwargs)
     self.multihead_attn = MultiheadAttention(
         d_model,
         nhead,
@@ -723,6 +700,17 @@ class TransformerDecoderLayer(nn.TransformerDecoderLayer):
         batch_first=batch_first,
         bias=False,
         **factory_kwargs)
+    self.dropout2 = nn.Dropout(dropout_rate)
+    self.norm3 = nn.LayerNorm(d_model, eps=layer_norm_eps, **factory_kwargs)
+    self.feed_forward = FeedForward(
+        d_model,
+        nhead,
+        dropout_rate=dropout_rate,
+        dim_feedforward=dim_feedforward,
+        batch_first=batch_first,
+        bias=False,
+         **factory_kwargs
+    )
 
   def forward(  # pylint: disable=arguments-renamed
       self,
@@ -749,21 +737,20 @@ class TransformerDecoderLayer(nn.TransformerDecoderLayer):
 
     # IMPORTANT FUNCTION HERE TODO ANNOTATE
     x = tgt
-    if self.norm_first:
-      sa_out, cache = self._sa_block(
-          self.norm1(x),
-          tgt_mask,
-          decode=decode,
-          max_len=max_len,
-          cache=cache,
-          index=index)
-      x = x + sa_out
-    # with hotline.annotate('LayerNorm'):
-      x = self.norm2(x)
-      x = x + self._mha_block(x, memory, memory_mask, None)
-    # with hotline.annotate('LayerNorm'):
-      x = self.norm3(x)
-      x = x + self._ff_block(x)
+    sa_out, cache = self._sa_block(
+        self.norm2(x),
+        tgt_mask,
+        decode=decode,
+        max_len=max_len,
+        cache=cache,
+        index=index)
+    x = x + sa_out
+  # with hotline.annotate('LayerNorm'):
+    x = self.norm2(x)
+    x = x + self._mha_block(x, memory, memory_mask, None)
+  # with hotline.annotate('LayerNorm'):
+    x = self.norm3(x)
+    x = x + self.feed_forward(x)
     # else:
     #   sa_out, cache = self._sa_block(
     #       x,
@@ -814,21 +801,6 @@ class TransformerDecoderLayer(nn.TransformerDecoderLayer):
       out = self.dropout2(x)
       return out
 
-  # feed forward block
-  # From: /home/dans/.local/lib/python3.8/site-packages/torch/nn/modules/transformer.py
-  def _ff_block(self, x: Tensor) -> Tensor:
-  # with hotline.annotate('Feed-Forward'):
-    # with hotline.annotate('linear'):
-      x = self.linear1(x)
-    # with hotline.annotate('relu'):
-      x = self.activation(x)
-    # with hotline.annotate('dropout'):
-      x = self.dropout(x)
-    # with hotline.annotate('linear'):
-      x = self.linear2(x)
-    # with hotline.annotate('dropout'):
-      x = self.dropout3(x)
-      return x
 
 
 # Only difference to standard PyTorch class is that 'self._qkv_same_embed_dim'
