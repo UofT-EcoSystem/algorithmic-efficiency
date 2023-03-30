@@ -304,6 +304,7 @@ kill %; python3 submission_runner.py \
       # active = 1
   max_steps = wait + warmup + active
 
+  run_name = 'Transformer'
   metadata = {
     'model': 'Transformer',
     'dataset': 'WMT17',
@@ -311,6 +312,10 @@ kill %; python3 submission_runner.py \
     'optimizer': 'Adam',
     'runtime': [],
   }
+  num_gpus = torch.cuda.device_count()
+  if num_gpus > 1:
+    run_name = f'{run_name}-{num_gpus}xGPUs'
+    metadata['model'] = f"{metadata['model']}-{num_gpus}xGPUs"
 
   model_params = torch.nn.DataParallel(model_params)
   torch_profiler = torch.profiler.profile(
@@ -324,7 +329,7 @@ kill %; python3 submission_runner.py \
     on_trace_ready=hotline.analyze(
         model_params,
         input_queue,
-        run_name='Transformer',
+        run_name=run_name,
         test_accuracy=True,
         output_dir='/home/dans/cpath',
         metadata=metadata,

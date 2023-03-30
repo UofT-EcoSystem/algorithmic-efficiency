@@ -13,16 +13,19 @@ from absl import logging
 
 def get_batch_size(workload_name):
   quick_run = os.environ.get('HOTLINE_QUICK_RUN')
+  gpu_model = torch.cuda.get_device_name(0)
+  num_gpus = torch.cuda.device_count()
   if quick_run:
     batch_sizes = {'wmt': 8 }
+    batch_sizes = {'wmt': min(8 * num_gpus, 128) } # TODO delete me
   else:
     batch_sizes = {'wmt': 128 }
-    gpu_model = torch.cuda.get_device_name(0)
-    num_gpus = torch.cuda.device_count()
     if 'V100-SXM2-16GB' in gpu_model:
       batch_sizes = {'wmt': min(16 * num_gpus, 128) }
     if '3090' in gpu_model:
       batch_sizes = {'wmt': min(32 * num_gpus, 128) }
+    elif '2080' in gpu_model:
+      batch_sizes = {'wmt': min(8 * num_gpus, 128) }
 
   logging.info(f'\n\nbatch_sizes: {batch_sizes}\n')
   return batch_sizes[workload_name]
