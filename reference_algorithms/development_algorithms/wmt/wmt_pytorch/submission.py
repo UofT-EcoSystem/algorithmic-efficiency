@@ -17,7 +17,6 @@ def get_batch_size(workload_name):
   num_gpus = torch.cuda.device_count()
   if quick_run:
     batch_sizes = {'wmt': 8 }
-    batch_sizes = {'wmt': min(8 * num_gpus, 128) } # TODO delete me
   else:
     batch_sizes = {'wmt': 128 }
     if 'V100-SXM2-16GB' in gpu_model:
