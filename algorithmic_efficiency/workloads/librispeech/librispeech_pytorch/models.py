@@ -27,15 +27,11 @@ class SequenceWise(nn.Module):
     self.module = module
 
   def forward(self, x):
-    module_name = self.module.__class__.__name__  # ex: Linear
-    if module_name == 'Sequential':
-      module_name = 'ignore ' + module_name
-    with hotline.annotate(module_name):
-      t, n = x.size(0), x.size(1)
-      x = x.view(t * n, -1)
-      x = self.module(x)
-      x = x.view(t, n, -1)
-      return x
+    t, n = x.size(0), x.size(1)
+    x = x.view(t * n, -1)
+    x = self.module(x)
+    x = x.view(t, n, -1)
+    return x
 
 
 class MaskConv(nn.Module):
@@ -176,10 +172,9 @@ class CNNLSTM(nn.Module):
     return seq_len.int()
 
   def forward(self, x, lengths, transcripts):
-    with hotline.annotate('MaskConv'):
-      lengths = lengths.int()
-      output_lengths = self.get_seq_lens(lengths)
-      x, _ = self.conv(x, output_lengths)
+    lengths = lengths.int()
+    output_lengths = self.get_seq_lens(lengths)
+    x, _ = self.conv(x, output_lengths)
 
     sizes = x.size()
     x = x.view(sizes[0], sizes[1] * sizes[2],
@@ -187,15 +182,11 @@ class CNNLSTM(nn.Module):
     x = x.transpose(1, 2).transpose(0, 1).contiguous()  # TxNxH
 
     for idx, rnn in enumerate(self.rnns):
-      with hotline.annotate(f'BatchRNN-{idx}'):
-        x = rnn(x, output_lengths)
+      x = rnn(x, output_lengths)
 
-    with hotline.annotate('Linear'):
-      x = self.fc(x)
-      # x = hotline.annotate_module_list(self.fc, x)
+    x = self.fc(x)
 
-    with hotline.annotate('SoftMax'):
-      log_probs = x.log_softmax(dim=-1).transpose(0, 1)
+    log_probs = x.log_softmax(dim=-1).transpose(0, 1)
 
     return log_probs, output_lengths
 
