@@ -316,8 +316,9 @@ kill %; python3 submission_runner.py \
   if num_gpus > 1:
     run_name = f'{run_name}-{num_gpus}xGPUs'
     metadata['model'] = f"{metadata['model']}-{num_gpus}xGPUs"
+  else:
+    model_params = torch.nn.DataParallel(model_params)
 
-  model_params = torch.nn.DataParallel(model_params)
   torch_profiler = torch.profiler.profile(
     activities=[
         torch.profiler.ProfilerActivity.CPU,
