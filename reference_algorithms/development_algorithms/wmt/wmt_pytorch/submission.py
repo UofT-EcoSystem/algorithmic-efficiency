@@ -25,6 +25,9 @@ def get_batch_size(workload_name):
       batch_sizes = {'wmt': min(32 * num_gpus, 128) }
     elif '2080' in gpu_model:
       batch_sizes = {'wmt': min(8 * num_gpus, 128) }
+  override_batch_size = os.environ.get('HOTLINE_BATCH_SIZE')
+  if override_batch_size:
+      batch_sizes = {'wmt': int(override_batch_size)}
 
   logging.info(f'\n\nbatch_sizes: {batch_sizes}\n')
   return batch_sizes[workload_name]
