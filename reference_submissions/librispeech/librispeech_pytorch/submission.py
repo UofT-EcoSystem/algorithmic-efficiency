@@ -10,7 +10,6 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 ctc_loss = torch.nn.CTCLoss(blank=0, reduction="none")
 
 
-import hotline
 
 
 def get_batch_size(workload_name):
@@ -74,22 +73,17 @@ def update_params(
   del loss_type
   del hyperparameters
 
-  with hotline.annotate('Forward'):
-    (log_y, output_lengths), _ = workload.model_fn(
-        current_param_container, batch, None,
-        spec.ForwardPassMode.TRAIN, rng, False)
+  (log_y, output_lengths), _ = workload.model_fn(
+      current_param_container, batch, None,
+      spec.ForwardPassMode.TRAIN, rng, False)
 
-  with hotline.annotate('Calc Loss'):
-    train_ctc_loss = torch.mean(workload.loss_fn(batch, (log_y, output_lengths)))
+  train_ctc_loss = torch.mean(workload.loss_fn(batch, (log_y, output_lengths)))
 
-  with hotline.annotate('Zero Grad'):
-    optimizer_state.zero_grad()
+  optimizer_state.zero_grad()
 
-  with hotline.annotate('Backward'):
-    train_ctc_loss.backward()
+  train_ctc_loss.backward()
 
-  with hotline.annotate('Optimizer'):
-    optimizer_state.step()
+  optimizer_state.step()
 
   return optimizer_state, current_param_container, None
 

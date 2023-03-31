@@ -10,7 +10,6 @@ import torch
 from torch import nn
 
 
-import hotline
 from IPython import embed
 
 
@@ -58,17 +57,15 @@ class MaskConv(nn.Module):
       Masked output from the module
     """
     for module in self.seq_module:
-      module_name = module.__class__.__name__  # ex: Linear
-      with hotline.annotate(module_name):
-        x = module(x)
-        mask = torch.BoolTensor(x.size()).fill_(0)
-        if x.is_cuda:
-          mask = mask.cuda()
-        for i, length in enumerate(lengths):
-          length = length.item()
-          if (mask[i].size(2) - length) > 0:
-            mask[i].narrow(2, length, mask[i].size(2) - length).fill_(1)
-        x = x.masked_fill(mask, 0)
+      x = module(x)
+      mask = torch.BoolTensor(x.size()).fill_(0)
+      if x.is_cuda:
+        mask = mask.cuda()
+      for i, length in enumerate(lengths):
+        length = length.item()
+        if (mask[i].size(2) - length) > 0:
+          mask[i].narrow(2, length, mask[i].size(2) - length).fill_(1)
+      x = x.masked_fill(mask, 0)
     return x, lengths
 
 
@@ -91,24 +88,21 @@ class BatchRNN(nn.Module):
   def forward(self, x, output_lengths):
     self.flatten_parameters()
     if self.batch_norm is not None:
-      with hotline.annotate('BatchNorm'):
-        x = self.batch_norm(x)
+      x = self.batch_norm(x)
 
-    with hotline.annotate('LSTM'):
-      x = x.transpose(0, 1)
-      total_length = x.size(1)
-      x = nn.utils.rnn.pack_padded_sequence(
-          x, output_lengths.cpu(), batch_first=True)
-      x, _ = self.rnn(x)
+    x = x.transpose(0, 1)
+    total_length = x.size(1)
+    x = nn.utils.rnn.pack_padded_sequence(
+        x, output_lengths.cpu(), batch_first=True)
+    x, _ = self.rnn(x)
 
-    with hotline.annotate('Sum'):
-      x, _ = nn.utils.rnn.pad_packed_sequence(
-          x, batch_first=True, total_length=total_length)
-      x = x.transpose(0, 1)
-      x = x.view(x.size(0), x.size(1), 2,
-                -1).sum(2).view(x.size(0), x.size(1),
-                                -1)  # (TxNxH*2) -> (TxNxH) by sum
-      return x
+    x, _ = nn.utils.rnn.pad_packed_sequence(
+        x, batch_first=True, total_length=total_length)
+    x = x.transpose(0, 1)
+    x = x.view(x.size(0), x.size(1), 2,
+              -1).sum(2).view(x.size(0), x.size(1),
+                              -1)  # (TxNxH*2) -> (TxNxH) by sum
+    return x
 
 
 class CNNLSTM(nn.Module):
