@@ -199,7 +199,6 @@ def train_once(workload: spec.Workload,
 
   last_time = datetime.datetime.now()
   print(last_time)
-  model_params = torch.nn.DataParallel(model_params)
 
   quick_run = os.environ.get('HOTLINE_QUICK_RUN')
   if quick_run:
@@ -215,6 +214,7 @@ def train_once(workload: spec.Workload,
       # active = 1
   max_steps = wait + warmup + active
 
+  run_name = 'RNN'
   metadata = {
     'model': 'RNN',
     'dataset': 'LibriSpeech',
@@ -222,8 +222,12 @@ def train_once(workload: spec.Workload,
     'optimizer': 'Adam',
     'runtime': [],
   }
-
-
+  num_gpus = torch.cuda.device_count()
+  if num_gpus > 1:
+    run_name = f'{run_name}-{num_gpus}xGPUs'
+    metadata['model'] = f"{metadata['model']}-{num_gpus}xGPUs"
+  else:
+    model_params = torch.nn.DataParallel(model_params)
 
   torch_profiler = torch.profiler.profile(
     activities=[
@@ -236,9 +240,7 @@ def train_once(workload: spec.Workload,
     on_trace_ready=hotline.analyze(
         model_params,
         input_queue,
-        run_name='RNN',
-        test_accuracy=True,
-        output_dir='/home/dans/cpath',
+        run_name=run_name,
         metadata=metadata,
     ),
     record_shapes=False,
