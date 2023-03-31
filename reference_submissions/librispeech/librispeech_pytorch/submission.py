@@ -30,6 +30,9 @@ def get_batch_size(workload_name):
       batch_sizes = {'librispeech': min(64  * num_gpus, default)}
     elif '2080' in gpu_model:
       batch_sizes = {'librispeech': min(8  * num_gpus, default)}
+  override_batch_size = os.environ.get('HOTLINE_BATCH_SIZE')
+  if override_batch_size:
+      batch_sizes = {'librispeech': int(override_batch_size)}
 
   from absl import logging
   logging.info(f'\n\nbatch_sizes: {batch_sizes}\n')
