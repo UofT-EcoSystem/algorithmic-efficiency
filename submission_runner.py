@@ -331,8 +331,6 @@ kill %; python3 submission_runner.py \
         model_params,
         input_queue,
         run_name=run_name,
-        test_accuracy=True,
-        output_dir='/home/dans/cpath',
         metadata=metadata,
     ),
     record_shapes=False,
