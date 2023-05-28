@@ -187,7 +187,7 @@ class CNNLSTM(nn.Module):
     x = x.transpose(1, 2).transpose(0, 1).contiguous()  # TxNxH
 
     for idx, rnn in enumerate(self.rnns):
-      with hotline.annotate(f'BatchRNN-{idx}'):
+      with hotline.annotate(f'Layer {idx}'):
         x = rnn(x, output_lengths)
 
     with hotline.annotate('Linear'):
