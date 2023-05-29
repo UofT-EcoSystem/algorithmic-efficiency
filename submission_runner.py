@@ -203,8 +203,8 @@ def train_once(workload: spec.Workload,
 
   quick_run = os.environ.get('HOTLINE_QUICK_RUN')
   if quick_run:
-      wait = 4
-      warmup = 3
+      wait = 1
+      warmup = 0
       active = 1
   else:
       wait = 20
